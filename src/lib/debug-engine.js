@@ -1,8 +1,18 @@
 /**
- * VOID DEBUGGER — Debug Engine
- * Step-through execution core.
+ * VOID DEBUGGER — Debug Engine v3.0
+ * True AST-instrumented execution engine.
+ *
+ * Replaces the v2 regex-line-scanner with real instrumented execution:
+ *   CodeInstrumenter  → transforms user code with async checkpoints
+ *   ExecutionRuntime  → controls pause/resume via Promise gates
+ *   BreakpointManager → rich breakpoint types with scope-aware eval
+ *
+ * @version 3.0.0
  */
-import { ts, formatValue, extractFnName, STEP_DELAY_MS, MAX_TIMELINE } from './helpers.js';
+import { ts, MAX_TIMELINE } from './helpers.js';
+import { CodeInstrumenter } from './code-instrumenter.js';
+import { ExecutionRuntime } from './execution-runtime.js';
+import { BreakpointManager } from './breakpoint-manager.js';
 
 export class TimelineLog {
   constructor() { this.events = []; }
@@ -18,13 +28,10 @@ export class ConsoleEngine {
   constructor() {
     this.history = [];
     this.histIdx = -1;
-    this.sandbox = null;
   }
 
-  setSandbox(ctx) { this.sandbox = ctx; }
-
   evaluate(expr, context = {}) {
-    const env = { ...context, ...(this.sandbox || {}) };
+    const env = { ...context };
     try {
       const keys = Object.keys(env);
       const vals = keys.map(k => env[k]);
@@ -52,210 +59,330 @@ export class ConsoleEngine {
 }
 
 export class DebugEngine {
+  /**
+   * @param {TimelineLog} timeline
+   * @param {Function} onEvent - callback(type, data) for UI updates
+   */
   constructor(timeline, onEvent) {
     this.timeline = timeline;
     this.onEvent = onEvent;
-    this.breakpoints = new Set();
-    this.state = 'idle';
-    this.lines = [];
-    this.currentLine = 0;
-    this.context = {};
-    this.callStack = [];
-    this.stepQueue = [];
-    this.stepTimer = null;
+
+    // Core modules
+    this.bpManager = new BreakpointManager();
+    this.instrumenter = new CodeInstrumenter();
+    this.runtime = null; // created per-execution
+
+    // State
+    this.state = 'idle'; // idle | running | paused
+    this._currentCheckpoint = null;
+    this._executionPromise = null;
   }
+
+  /* ═══════════════════════════════════════
+     BREAKPOINT API (delegates to manager)
+  ═══════════════════════════════════════ */
 
   toggleBreakpoint(line) {
-    if (this.breakpoints.has(line)) {
-      this.breakpoints.delete(line);
-      this.timeline.record('bp-remove', `BP-${line}`);
+    const bp = this.bpManager.toggle(line);
+    if (bp) {
+      this.timeline.record('bp-set', `BP:${line}`, { line });
     } else {
-      this.breakpoints.add(line);
-      this.timeline.record('bp-hit', `BP:${line}`, { line });
+      this.timeline.record('bp-remove', `BP-${line}`, { line });
     }
-    this.onEvent('breakpoints-changed', { breakpoints: [...this.breakpoints] });
-  }
-
-  clearBreakpoints() {
-    this.breakpoints.clear();
-    this.onEvent('breakpoints-changed', { breakpoints: [] });
-  }
-
-  parseSource(code) {
-    this.lines = code.split('\n');
-    this.stepQueue = this._generateSteps(code);
-    this.currentLine = 0;
-    this.context = {};
-    this.callStack = [];
-  }
-
-  _generateSteps(code) {
-    const steps = [];
-    const consoleCapture = [];
-    const origLog = console.log.bind(console);
-
-    try {
-      const logCapture = (...args) => {
-        const msg = args.map(a => {
-          if (typeof a === 'object' && a !== null) {
-            try { return JSON.stringify(a); } catch { return String(a); }
-          }
-          return String(a);
-        }).join(' ');
-        consoleCapture.push({ msg, line: 'runtime' });
-        origLog(...args);
-      };
-      const fn = new Function('console', '__trace__', `'use strict';\n${code}\n`);
-      fn({ log: logCapture, warn: logCapture, error: logCapture }, {});
-    } catch { /* silent */ }
-
-    const codeLines = code.split('\n');
-    let varContext = {};
-    let stackSim = [{ name: '(global)', line: 1 }];
-    let logIdx = 0;
-
-    for (let i = 0; i < codeLines.length; i++) {
-      const lineNum = i + 1;
-      const raw = codeLines[i];
-      const trimmed = raw.trim();
-
-      const isBlank = trimmed.length === 0;
-      const isComment = trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
-      const isFnDecl = /^\s*(function\s+\w+|const\s+\w+\s*=\s*(\(|function)|let\s+\w+\s*=\s*(\(|function)|var\s+\w+\s*=\s*(\(|function))/.test(raw);
-      const isVarDecl = /^\s*(const|let|var)\s+/.test(raw) && !isFnDecl;
-      const isReturn = /^\s*return\b/.test(raw);
-      const isFnCall = /\w+\s*\(/.test(trimmed) && !isFnDecl;
-      const isLog = /console\.(log|warn|error)/.test(trimmed);
-
-      if (isVarDecl) {
-        const m = raw.match(/(?:const|let|var)\s+(\w+)\s*=\s*(.+?)(?:;|$)/);
-        if (m) {
-          try {
-            const val = m[2].trim().replace(/;$/, '');
-            if (/^["'`]/.test(val)) varContext[m[1]] = { type: 'str', v: val.replace(/^["'`]|["'`]$/g, '').slice(0, 30) };
-            else if (/^\d/.test(val)) varContext[m[1]] = { type: 'number', v: val };
-            else if (val === 'true' || val === 'false') varContext[m[1]] = { type: 'bool', v: val };
-            else if (val.startsWith('[')) varContext[m[1]] = { type: 'array', v: '[]' };
-            else if (val.startsWith('{')) varContext[m[1]] = { type: 'object', v: '{}' };
-            else varContext[m[1]] = { type: 'ref', v: val.slice(0, 20) };
-          } catch { /**/ }
-        }
-      }
-
-      if (isFnDecl) stackSim = [{ name: extractFnName(raw) || '(anonymous)', line: lineNum }];
-
-      let logLine = null;
-      if (isLog && logIdx < consoleCapture.length) {
-        logLine = consoleCapture[logIdx++];
-      }
-
-      steps.push({
-        lineNum, raw, trimmed, isBlank, isComment, isFnDecl,
-        isVarDecl, isReturn, isFnCall, isLog, logLine,
-        vars: { ...varContext }, stack: [...stackSim],
-        skip: isBlank || isComment,
-      });
-    }
-    return steps;
-  }
-
-  async run(code, onConsoleMsg) {
-    if (this.state !== 'idle') return;
-    this.parseSource(code);
-    this.state = 'running';
-    this.onEvent('state-change', { state: 'running' });
-    await this._executeCapture(code, onConsoleMsg);
-    this._stepThrough(false);
-  }
-
-  async _executeCapture(code, onConsoleMsg) {
-    return new Promise(resolve => {
-      const logCapture = (...args) => {
-        const msg = args.map(a => {
-          if (typeof a === 'object' && a !== null) {
-            try { return JSON.stringify(a); } catch { return String(a); }
-          }
-          return String(a);
-        }).join(' ');
-        onConsoleMsg({ type: 'log', msg, ts: ts() });
-      };
-      try {
-        const fn = new Function('console', `'use strict';\n${code}`);
-        fn({ log: logCapture, warn: logCapture, error: logCapture, info: logCapture });
-      } catch (e) {
-        onConsoleMsg({ type: 'error', msg: `RuntimeError: ${e.message}`, ts: ts() });
-        this.timeline.record('err', `ERR: ${e.message.slice(0, 20)}`);
-      }
-      resolve();
+    this.onEvent('breakpoints-changed', {
+      breakpoints: [...this.bpManager.getLineSet()],
+      breakpointData: this.bpManager.serialize(),
     });
   }
 
-  _stepThrough(stepMode = false) {
-    if (this.currentLine >= this.stepQueue.length) {
-      this.state = 'idle';
-      this.onEvent('state-change', { state: 'idle' });
-      this.onEvent('execution-done', {});
-      return;
-    }
-    const step = this.stepQueue[this.currentLine];
-    this.currentLine++;
-
-    if (step.skip) {
-      if (!stepMode) this._scheduleNext(stepMode, 0);
-      else this._stepThrough(stepMode);
-      return;
-    }
-
-    if (this.breakpoints.has(step.lineNum) && !stepMode) {
-      this.state = 'paused';
-      this.onEvent('state-change', { state: 'paused' });
-      this.onEvent('breakpoint-hit', { line: step.lineNum, step });
-      this.timeline.record('bp-hit', `BP:${step.lineNum}`, { line: step.lineNum });
-      return;
-    }
-
-    this.onEvent('step', { step, idx: this.currentLine });
-
-    if (step.isFnDecl) this.timeline.record('fn-call', extractFnName(step.raw) || 'fn', { line: step.lineNum });
-    else if (step.isReturn) this.timeline.record('fn-ret', 'ret', { line: step.lineNum });
-    else this.timeline.record('step', `L${step.lineNum}`, { line: step.lineNum });
-
-    if (!stepMode) this._scheduleNext(stepMode, STEP_DELAY_MS);
+  setConditionalBreakpoint(line, condition) {
+    this.bpManager.set(line, 'conditional', { condition });
+    this.timeline.record('bp-set', `CBP:${line}`, { line, condition });
+    this._emitBPChanged();
   }
 
-  _scheduleNext(stepMode, delay) {
-    clearTimeout(this.stepTimer);
-    this.stepTimer = setTimeout(() => {
-      if (this.state === 'running') this._stepThrough(stepMode);
-    }, delay);
+  setLogpoint(line, logMessage) {
+    this.bpManager.set(line, 'logpoint', { logMessage });
+    this.timeline.record('bp-set', `LOG:${line}`, { line });
+    this._emitBPChanged();
+  }
+
+  setHitCountBreakpoint(line, hitTarget) {
+    this.bpManager.set(line, 'hitcount', { hitTarget });
+    this.timeline.record('bp-set', `HIT:${line}`, { line, hitTarget });
+    this._emitBPChanged();
+  }
+
+  removeBreakpoint(line) {
+    this.bpManager.remove(line);
+    this._emitBPChanged();
+  }
+
+  clearBreakpoints() {
+    this.bpManager.clear();
+    this._emitBPChanged();
+  }
+
+  setExceptionBreakpoints(enabled, uncaughtOnly = true) {
+    this.bpManager.exceptionBreakEnabled = enabled;
+    this.bpManager.uncaughtOnly = uncaughtOnly;
+  }
+
+  getBreakpointAt(line) {
+    return this.bpManager.get(line);
+  }
+
+  getBreakpointLines() {
+    return this.bpManager.getLineSet();
+  }
+
+  _emitBPChanged() {
+    this.onEvent('breakpoints-changed', {
+      breakpoints: [...this.bpManager.getLineSet()],
+      breakpointData: this.bpManager.serialize(),
+    });
+  }
+
+  /* ═══════════════════════════════════════
+     EXECUTION CONTROL
+  ═══════════════════════════════════════ */
+
+  /**
+   * Run the code with instrumented execution.
+   */
+  async run(code, onConsoleMsg) {
+    if (this.state !== 'idle') return;
+
+    // Instrument the code
+    const { code: instrumented, error } = this.instrumenter.instrument(code);
+    if (error) {
+      onConsoleMsg({ type: 'error', msg: `Instrumentation failed: ${error}`, ts: ts() });
+      return;
+    }
+
+    // Create fresh runtime for this execution
+    this.runtime = new ExecutionRuntime(
+      this.bpManager,
+      (checkpoint) => this._onCheckpoint(checkpoint),
+      (msg) => onConsoleMsg(msg),
+      (stack) => this._onFrameChange(stack),
+    );
+    this.runtime.reset();
+
+    this.state = 'running';
+    this.onEvent('state-change', { state: 'running' });
+
+    // Build console capture
+    const logCapture = (...args) => {
+      const msg = args.map(a => {
+        if (typeof a === 'object' && a !== null) {
+          try { return JSON.stringify(a); } catch { return String(a); }
+        }
+        return String(a);
+      }).join(' ');
+      onConsoleMsg({ type: 'log', msg, ts: ts() });
+    };
+
+    // Execute the instrumented code
+    try {
+      const __rt = this.runtime;
+      const fn = new Function('__rt', 'console', `'use strict'; return ${instrumented}`);
+
+      this._executionPromise = fn(
+        __rt,
+        { log: logCapture, warn: logCapture, error: logCapture, info: logCapture }
+      );
+
+      await this._executionPromise;
+
+      // Execution completed normally
+      if (this.state !== 'idle') {
+        this.state = 'idle';
+        this.onEvent('state-change', { state: 'idle' });
+        this.onEvent('execution-done', {});
+      }
+    } catch (e) {
+      if (e.message === '__VOID_EXECUTION_STOPPED__') {
+        // Intentional stop
+        this.state = 'idle';
+        this.onEvent('state-change', { state: 'idle' });
+        this.onEvent('stopped', {});
+      } else {
+        // Runtime error
+        onConsoleMsg({ type: 'error', msg: `RuntimeError: ${e.message}`, ts: ts() });
+        this.timeline.record('err', `ERR: ${e.message.slice(0, 20)}`, {});
+        this.state = 'idle';
+        this.onEvent('state-change', { state: 'idle' });
+        this.onEvent('execution-done', { error: e.message });
+      }
+    }
+  }
+
+  /**
+   * Called by the runtime when execution is paused at a checkpoint.
+   */
+  _onCheckpoint(checkpoint) {
+    this._currentCheckpoint = checkpoint;
+    this.state = 'paused';
+    this.onEvent('state-change', { state: 'paused' });
+
+    // Build step data compatible with existing UI
+    const step = {
+      lineNum: checkpoint.line,
+      vars: checkpoint.scopeVars,
+      rawVars: checkpoint.rawVars,
+      stack: checkpoint.callStack,
+      reason: checkpoint.reason,
+      bpType: checkpoint.bpType,
+    };
+
+    if (checkpoint.reason === 'breakpoint') {
+      this.onEvent('breakpoint-hit', { line: checkpoint.line, step });
+      this.timeline.record('bp-hit', `BP:${checkpoint.line}`, { line: checkpoint.line });
+    } else if (checkpoint.reason === 'exception') {
+      this.onEvent('exception-hit', {
+        line: checkpoint.line,
+        step,
+        exception: checkpoint.exception
+      });
+      this.timeline.record('err', `EXC:${checkpoint.line}`, { line: checkpoint.line });
+    } else {
+      this.onEvent('step', { step, idx: checkpoint.line });
+    }
+
+    this.onEvent('timeline-update', { events: this.timeline.getEvents() });
+  }
+
+  /**
+   * Called by the runtime when the call stack changes.
+   */
+  _onFrameChange(stack) {
+    this.onEvent('frame-change', { stack });
+  }
+
+  /* ═══════════════════════════════════════
+     USER ACTIONS (Resume / Step / Stop)
+  ═══════════════════════════════════════ */
+
+  resume() {
+    if (this.state !== 'paused' || !this.runtime) return;
+    this.state = 'running';
+    this.onEvent('state-change', { state: 'running' });
+    this.timeline.record('step', `RESUME`, {});
+    this.runtime.resume();
   }
 
   stepOver() {
-    if (this.state !== 'paused' && this.state !== 'idle') return;
+    if (!this.runtime) return;
     if (this.state === 'idle') {
-      this.onEvent('state-change', { state: 'paused' });
-      this.state = 'paused';
+      // First step — need to start execution
+      return; // handled by doStep in useDebugger
     }
-    this._stepThrough(true);
-    this.onEvent('state-change', { state: 'paused' });
-  }
-
-  stepInto() { this.stepOver(); }
-
-  resume() {
     if (this.state !== 'paused') return;
     this.state = 'running';
     this.onEvent('state-change', { state: 'running' });
-    this._scheduleNext(false, STEP_DELAY_MS);
+    this.timeline.record('step', `STEP-OVER`, {});
+    this.runtime.stepOver();
+  }
+
+  stepInto() {
+    if (!this.runtime || this.state !== 'paused') return;
+    this.state = 'running';
+    this.onEvent('state-change', { state: 'running' });
+    this.timeline.record('step', `STEP-INTO`, {});
+    this.runtime.stepInto();
+  }
+
+  stepOut() {
+    if (!this.runtime || this.state !== 'paused') return;
+    this.state = 'running';
+    this.onEvent('state-change', { state: 'running' });
+    this.timeline.record('step', `STEP-OUT`, {});
+    this.runtime.stepOut();
+  }
+
+  continueToCursor(line) {
+    if (!this.runtime || this.state !== 'paused') return;
+    this.state = 'running';
+    this.onEvent('state-change', { state: 'running' });
+    this.timeline.record('step', `RUN→L${line}`, { line });
+    this.runtime.continueToCursor(line);
   }
 
   stop() {
-    clearTimeout(this.stepTimer);
+    if (this.runtime) {
+      this.runtime.stop();
+    }
     this.state = 'idle';
-    this.currentLine = 0;
-    this.callStack = [];
-    this.context = {};
+    this._currentCheckpoint = null;
     this.onEvent('state-change', { state: 'idle' });
     this.onEvent('stopped', {});
+  }
+
+  /**
+   * Start execution in step mode — run to the first checkpoint and pause.
+   */
+  async runToFirstCheckpoint(code, onConsoleMsg) {
+    if (this.state !== 'idle') return;
+
+    const { code: instrumented, error } = this.instrumenter.instrument(code);
+    if (error) {
+      onConsoleMsg({ type: 'error', msg: `Instrumentation failed: ${error}`, ts: ts() });
+      return;
+    }
+
+    this.runtime = new ExecutionRuntime(
+      this.bpManager,
+      (checkpoint) => this._onCheckpoint(checkpoint),
+      (msg) => onConsoleMsg(msg),
+      (stack) => this._onFrameChange(stack),
+    );
+    this.runtime.reset();
+    this.runtime.mode = 'into'; // pause at first checkpoint
+
+    this.state = 'running';
+    this.onEvent('state-change', { state: 'running' });
+
+    const logCapture = (...args) => {
+      const msg = args.map(a => {
+        if (typeof a === 'object' && a !== null) {
+          try { return JSON.stringify(a); } catch { return String(a); }
+        }
+        return String(a);
+      }).join(' ');
+      onConsoleMsg({ type: 'log', msg, ts: ts() });
+    };
+
+    try {
+      const __rt = this.runtime;
+      const fn = new Function('__rt', 'console', `'use strict'; return ${instrumented}`);
+      this._executionPromise = fn(
+        __rt,
+        { log: logCapture, warn: logCapture, error: logCapture, info: logCapture }
+      );
+      await this._executionPromise;
+
+      if (this.state !== 'idle') {
+        this.state = 'idle';
+        this.onEvent('state-change', { state: 'idle' });
+        this.onEvent('execution-done', {});
+      }
+    } catch (e) {
+      if (e.message === '__VOID_EXECUTION_STOPPED__') {
+        this.state = 'idle';
+        this.onEvent('state-change', { state: 'idle' });
+        this.onEvent('stopped', {});
+      } else {
+        onConsoleMsg({ type: 'error', msg: `RuntimeError: ${e.message}`, ts: ts() });
+        this.state = 'idle';
+        this.onEvent('state-change', { state: 'idle' });
+        this.onEvent('execution-done', { error: e.message });
+      }
+    }
+  }
+
+  /** Get the current checkpoint data (for REPL context). */
+  getCurrentScope() {
+    return this._currentCheckpoint?.rawVars || {};
   }
 }
