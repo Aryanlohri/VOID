@@ -1,5 +1,10 @@
-export default function BottomBar({ breakpoints, timelineEvents, onToggleBreakpoint }) {
-  const bps = [...breakpoints].sort((a, b) => a - b);
+export default function BottomBar({ breakpoints, breakpointData, timelineEvents, onToggleBreakpoint }) {
+  const bps = (breakpointData || []).sort((a, b) => a.line - b.line);
+
+  const typeIcons = { normal: '●', conditional: '◆', logpoint: '◇', hitcount: '◈' };
+  const typeLabels = {
+    normal: '', conditional: 'cond', logpoint: 'log', hitcount: 'hit'
+  };
 
   return (
     <div className="bottom-bar">
@@ -7,15 +12,34 @@ export default function BottomBar({ breakpoints, timelineEvents, onToggleBreakpo
         <div className="panel-title"><span className="panel-icon">&#9679;</span> BREAKPOINTS</div>
         <div className="bp-list" id="bpList">
           {bps.length === 0 ? (
-            <span className="empty-state">None set.</span>
+            <span className="empty-state">None set. Click a line number or right-click for options.</span>
           ) : (
-            bps.map(line => (
+            bps.map(bp => (
               <div
-                className="bp-chip"
-                key={line}
-                onClick={() => onToggleBreakpoint(line)}
+                className={`bp-chip bp-chip-${bp.type}`}
+                key={bp.id}
+                onClick={() => onToggleBreakpoint(bp.line)}
+                title={
+                  bp.type === 'conditional' ? `Condition: ${bp.condition}` :
+                  bp.type === 'logpoint' ? `Log: ${bp.logMessage}` :
+                  bp.type === 'hitcount' ? `Break at hit #${bp.hitTarget} (current: ${bp.hitCount})` :
+                  `Line ${bp.line}`
+                }
               >
-                ● L{line}
+                <span className="bp-chip-icon">{typeIcons[bp.type] || '●'}</span>
+                L{bp.line}
+                {bp.type !== 'normal' && (
+                  <span className="bp-chip-type">{typeLabels[bp.type]}</span>
+                )}
+                {bp.type === 'conditional' && bp.condition && (
+                  <span className="bp-chip-detail">{bp.condition.slice(0, 15)}</span>
+                )}
+                {bp.type === 'logpoint' && bp.logMessage && (
+                  <span className="bp-chip-detail">{bp.logMessage.slice(0, 15)}</span>
+                )}
+                {bp.type === 'hitcount' && (
+                  <span className="bp-chip-detail">#{bp.hitTarget}</span>
+                )}
                 <span className="bp-remove" title="Remove">✕</span>
               </div>
             ))

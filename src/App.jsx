@@ -14,7 +14,6 @@ export default function App() {
   const [theme, setTheme] = useState('dark');
   const db = useDebugger();
 
-  // Theme toggle
   const toggleTheme = useCallback(() => {
     setTheme(prev => {
       const next = prev === 'dark' ? 'light' : 'dark';
@@ -23,13 +22,14 @@ export default function App() {
     });
   }, []);
 
-  // Global keyboard shortcuts
+  // Global keyboard shortcuts — v3
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'F5' && !e.shiftKey) { e.preventDefault(); db.doRun(); }
-      if (e.key === 'F5' && e.shiftKey) { e.preventDefault(); db.doStop(); }
-      if (e.key === 'F10') { e.preventDefault(); db.doStep('over'); }
-      if (e.key === 'F11') { e.preventDefault(); db.doStep('into'); }
+      if (e.key === 'F5' && !e.shiftKey)  { e.preventDefault(); db.doRun(); }
+      if (e.key === 'F5' && e.shiftKey)   { e.preventDefault(); db.doStop(); }
+      if (e.key === 'F10')                { e.preventDefault(); db.doStep('over'); }
+      if (e.key === 'F11' && !e.shiftKey) { e.preventDefault(); db.doStep('into'); }
+      if (e.key === 'F11' && e.shiftKey)  { e.preventDefault(); db.doStep('out'); }
       if ((e.ctrlKey || e.metaKey) && e.key === 'o') { e.preventDefault(); db.openFile(); }
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); db.saveFile(); }
     };
@@ -50,6 +50,7 @@ export default function App() {
           onRun={db.doRun}
           onStepOver={() => db.doStep('over')}
           onStepInto={() => db.doStep('into')}
+          onStepOut={() => db.doStep('out')}
           onStop={db.doStop}
           onClear={db.doClear}
           onOpenFile={db.openFile}
@@ -70,12 +71,18 @@ export default function App() {
               code={db.code}
               highlightParts={db.highlightParts}
               breakpoints={db.breakpoints}
+              breakpointData={db.breakpointData}
               currentStep={db.currentStep}
               astErrors={db.astErrors}
               fnRanges={db.fnRanges}
+              engineState={db.engineState}
               onCodeChange={db.onCodeChange}
               onToggleBreakpoint={db.toggleBreakpoint}
               onJumpToDefinition={db.jumpToDefinition}
+              onSetConditionalBP={db.setConditionalBreakpoint}
+              onSetLogpoint={db.setLogpoint}
+              onSetHitCountBP={db.setHitCountBreakpoint}
+              onContinueToCursor={db.continueToCursor}
             />
           </div>
 
@@ -101,6 +108,7 @@ export default function App() {
 
         <BottomBar
           breakpoints={db.breakpoints}
+          breakpointData={db.breakpointData}
           timelineEvents={db.timelineEvents}
           onToggleBreakpoint={db.toggleBreakpoint}
         />

@@ -1,6 +1,6 @@
 /**
- * VOID DEBUGGER — useDebugger Hook
- * Central state management for the entire debugger.
+ * VOID DEBUGGER — useDebugger Hook v3.0
+ * Central state management with real instrumented execution.
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ASTEngine } from '../lib/ast-engine.js';
@@ -8,16 +8,15 @@ import { DebugEngine, TimelineLog, ConsoleEngine } from '../lib/debug-engine.js'
 import { ts, formatValue, SAMPLE_CODE } from '../lib/helpers.js';
 
 export function useDebugger() {
-  // Core engine refs (mutable, don't trigger re-renders)
   const astRef = useRef(new ASTEngine());
   const timelineRef = useRef(new TimelineLog());
   const consoleEngRef = useRef(new ConsoleEngine());
   const engineRef = useRef(null);
 
-  // State
   const [code, setCode] = useState(SAMPLE_CODE);
   const [engineState, setEngineState] = useState('idle');
   const [breakpoints, setBreakpoints] = useState(new Set());
+  const [breakpointData, setBreakpointData] = useState([]);
   const [currentStep, setCurrentStep] = useState(null);
   const [variables, setVariables] = useState({});
   const [callStack, setCallStack] = useState([]);
@@ -28,43 +27,71 @@ export function useDebugger() {
   const [astErrors, setAstErrors] = useState([]);
   const [fnRanges, setFnRanges] = useState([]);
 
-  // File tabs
   const [files, setFiles] = useState([
     { name: 'sample.js', content: SAMPLE_CODE, modified: false }
   ]);
   const [activeFileIdx, setActiveFileIdx] = useState(0);
 
-  // Console log helper
   const addConsoleLine = useCallback((line) => {
     setConsoleLines(prev => [...prev, line]);
   }, []);
 
-  // Engine event handler
+  // Engine event handler — updated for v3
   const handleEngineEvent = useCallback((type, data) => {
     switch (type) {
       case 'state-change':
         setEngineState(data.state);
         break;
+
       case 'step':
         setCurrentStep(data.step);
         setVariables(data.step.vars || {});
         setCallStack(data.step.stack || []);
         setTimelineEvents(timelineRef.current.getEvents());
         break;
+
       case 'breakpoint-hit':
         setCurrentStep(data.step);
         setVariables(data.step.vars || {});
         setCallStack(data.step.stack || []);
         setTimelineEvents(timelineRef.current.getEvents());
-        addConsoleLine({ type: 'warn', msg: `⬤ Breakpoint hit at line ${data.line}`, ts: ts() });
+        addConsoleLine({
+          type: 'warn',
+          msg: `⬤ Breakpoint hit at line ${data.line}${data.step.bpType && data.step.bpType !== 'normal' ? ` (${data.step.bpType})` : ''}`,
+          ts: ts()
+        });
         break;
+
+      case 'exception-hit':
+        setCurrentStep(data.step);
+        setVariables(data.step.vars || {});
+        setCallStack(data.step.stack || []);
+        setTimelineEvents(timelineRef.current.getEvents());
+        addConsoleLine({
+          type: 'error',
+          msg: `⚡ Exception at line ${data.line}: ${data.exception?.message || 'Unknown error'}`,
+          ts: ts()
+        });
+        break;
+
       case 'breakpoints-changed':
         setBreakpoints(new Set(data.breakpoints));
+        setBreakpointData(data.breakpointData || []);
         break;
+
+      case 'frame-change':
+        setCallStack(data.stack || []);
+        break;
+
+      case 'timeline-update':
+        setTimelineEvents(data.events || []);
+        break;
+
       case 'execution-done':
         addConsoleLine({ type: 'info', msg: `✓ Execution complete at ${ts()}`, ts: ts() });
         setCurrentStep(null);
         break;
+
       case 'stopped':
         setCurrentStep(null);
         break;
@@ -74,15 +101,12 @@ export function useDebugger() {
   // Initialize engine
   useEffect(() => {
     engineRef.current = new DebugEngine(timelineRef.current, handleEngineEvent);
-    addConsoleLine({ type: 'info', msg: 'VOID Debugger v2.0 initialized. Ready.', ts: ts() });
-    addConsoleLine({ type: 'log', msg: 'Set breakpoints → click line numbers.', ts: ts() });
-    addConsoleLine({ type: 'log', msg: 'Ctrl+Click on a function name → jump to definition.', ts: ts() });
-    addConsoleLine({ type: 'log', msg: 'Shortcuts: F5=Run  F10=Step  Shift+F5=Stop', ts: ts() });
-    // Initial highlight
+    addConsoleLine({ type: 'info', msg: 'VOID Debugger v3.0 — True Step Engine initialized.', ts: ts() });
+    addConsoleLine({ type: 'log', msg: 'Set breakpoints → click line numbers. Right-click → conditional BP, logpoint.', ts: ts() });
+    addConsoleLine({ type: 'log', msg: 'Shortcuts: F5=Run  F10=StepOver  F11=StepInto  Shift+F11=StepOut  Shift+F5=Stop', ts: ts() });
     doHighlight(SAMPLE_CODE);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Highlight code with AST
   const doHighlight = useCallback((src) => {
     const result = astRef.current.parse(src);
     const parts = astRef.current.highlight(src);
@@ -100,7 +124,6 @@ export function useDebugger() {
     }
   }, [addConsoleLine]);
 
-  // Code change handler
   const onCodeChange = useCallback((newCode) => {
     setCode(newCode);
     setFiles(prev => prev.map((f, i) =>
@@ -109,14 +132,24 @@ export function useDebugger() {
     doHighlight(newCode);
   }, [activeFileIdx, doHighlight]);
 
-  // Breakpoint toggle
+  // Breakpoint management — rich types
   const toggleBreakpoint = useCallback((line) => {
-    if (engineRef.current) {
-      engineRef.current.toggleBreakpoint(line);
-    }
+    if (engineRef.current) engineRef.current.toggleBreakpoint(line);
   }, []);
 
-  // Run
+  const setConditionalBreakpoint = useCallback((line, condition) => {
+    if (engineRef.current) engineRef.current.setConditionalBreakpoint(line, condition);
+  }, []);
+
+  const setLogpoint = useCallback((line, logMessage) => {
+    if (engineRef.current) engineRef.current.setLogpoint(line, logMessage);
+  }, []);
+
+  const setHitCountBreakpoint = useCallback((line, hitTarget) => {
+    if (engineRef.current) engineRef.current.setHitCountBreakpoint(line, parseInt(hitTarget));
+  }, []);
+
+  // Execution
   const doRun = useCallback(() => {
     const engine = engineRef.current;
     if (!engine) return;
@@ -127,26 +160,27 @@ export function useDebugger() {
       return;
     }
     addConsoleLine({ type: 'info', msg: `▶ Execution started at ${ts()}`, ts: ts() });
-    engine.parseSource(code);
     engine.run(code, (msg) => addConsoleLine(msg));
   }, [code, addConsoleLine]);
 
-  // Step
   const doStep = useCallback((type) => {
     const engine = engineRef.current;
     if (!engine) return;
+
     if (engine.state === 'idle') {
       if (!code.trim()) return;
-      engine.parseSource(code);
-      engine.state = 'paused';
-      setEngineState('paused');
       addConsoleLine({ type: 'info', msg: '⏭ Step mode started', ts: ts() });
+      engine.runToFirstCheckpoint(code, (msg) => addConsoleLine(msg));
+      return;
     }
-    if (type === 'over') engine.stepOver();
-    else engine.stepInto();
+
+    if (engine.state === 'paused') {
+      if (type === 'over') engine.stepOver();
+      else if (type === 'into') engine.stepInto();
+      else if (type === 'out') engine.stepOut();
+    }
   }, [code, addConsoleLine]);
 
-  // Stop
   const doStop = useCallback(() => {
     if (engineRef.current) {
       engineRef.current.stop();
@@ -154,7 +188,15 @@ export function useDebugger() {
     }
   }, [addConsoleLine]);
 
-  // Clear
+  const continueToCursor = useCallback((line) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    if (engine.state === 'paused') {
+      addConsoleLine({ type: 'info', msg: `→ Continue to line ${line}`, ts: ts() });
+      engine.continueToCursor(line);
+    }
+  }, [addConsoleLine]);
+
   const doClear = useCallback(() => {
     if (engineRef.current) engineRef.current.stop();
     timelineRef.current.clear();
@@ -165,22 +207,23 @@ export function useDebugger() {
     setConsoleLines([]);
   }, []);
 
-  // Console evaluate
+  // Console — now uses real scope from runtime
   const evaluateExpr = useCallback((expr) => {
     addConsoleLine({ type: 'exec', msg: `>>> ${expr}`, ts: ts() });
-    const ctx = currentStep ? currentStep.vars : {};
+    const engine = engineRef.current;
+    const ctx = engine ? engine.getCurrentScope() : {};
     const result = consoleEngRef.current.evaluate(expr, ctx);
     if (result.ok) {
       addConsoleLine({ type: 'result', msg: `← ${formatValue(result.value)}`, ts: ts() });
     } else {
       addConsoleLine({ type: 'error', msg: `✗ ${result.error}`, ts: ts() });
     }
-  }, [currentStep, addConsoleLine]);
+  }, [addConsoleLine]);
 
   const consoleHistoryUp = useCallback(() => consoleEngRef.current.historyUp(), []);
   const consoleHistoryDown = useCallback(() => consoleEngRef.current.historyDown(), []);
 
-  // Watch
+  // Watch — now uses real scope
   const addWatch = useCallback((expr) => {
     setWatchExprs(prev => prev.includes(expr) ? prev : [...prev, expr]);
   }, []);
@@ -190,14 +233,15 @@ export function useDebugger() {
   }, []);
 
   const evaluateWatch = useCallback((expr) => {
-    const ctx = currentStep ? currentStep.vars : {};
+    const engine = engineRef.current;
+    const ctx = engine ? engine.getCurrentScope() : {};
     return consoleEngRef.current.evaluate(expr, ctx);
-  }, [currentStep]);
+  }, []);
 
-  // File management
+  // File management (unchanged)
   const addFile = useCallback((name, content = '') => {
     setFiles(prev => [...prev, { name: name || `untitled-${prev.length}.js`, content, modified: false }]);
-    setActiveFileIdx(prev => files.length);
+    setActiveFileIdx(files.length);
     setCode(content);
     doHighlight(content);
   }, [files.length, doHighlight]);
@@ -208,10 +252,7 @@ export function useDebugger() {
     ));
     setActiveFileIdx(idx);
     const file = files[idx];
-    if (file) {
-      setCode(file.content);
-      doHighlight(file.content);
-    }
+    if (file) { setCode(file.content); doHighlight(file.content); }
   }, [activeFileIdx, code, files, doHighlight]);
 
   const closeFile = useCallback((idx) => {
@@ -220,13 +261,9 @@ export function useDebugger() {
     const newIdx = idx >= files.length - 1 ? files.length - 2 : idx;
     setActiveFileIdx(newIdx);
     const newFile = files[newIdx === idx ? (idx > 0 ? idx - 1 : 0) : newIdx];
-    if (newFile) {
-      setCode(newFile.content);
-      doHighlight(newFile.content);
-    }
+    if (newFile) { setCode(newFile.content); doHighlight(newFile.content); }
   }, [files, doHighlight]);
 
-  // Open file from disk
   const openFile = useCallback(async () => {
     try {
       if (window.showOpenFilePicker) {
@@ -238,55 +275,40 @@ export function useDebugger() {
         addFile(file.name, content);
       } else {
         const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.js,.mjs,.jsx,.ts,.tsx,.txt';
+        input.type = 'file'; input.accept = '.js,.mjs,.jsx,.ts,.tsx,.txt';
         input.onchange = async (e) => {
           const f = e.target.files[0];
-          if (f) {
-            const content = await f.text();
-            addFile(f.name, content);
-          }
+          if (f) addFile(f.name, await f.text());
         };
         input.click();
       }
     } catch { /* cancelled */ }
   }, [addFile]);
 
-  // Save file to disk
   const saveFile = useCallback(async () => {
     const name = files[activeFileIdx]?.name || 'untitled.js';
     try {
       if (window.showSaveFilePicker) {
         const handle = await window.showSaveFilePicker({
-          suggestedName: name,
-          types: [{ description: 'JavaScript', accept: { 'text/javascript': ['.js'] } }]
+          suggestedName: name, types: [{ description: 'JavaScript', accept: { 'text/javascript': ['.js'] } }]
         });
         const writable = await handle.createWritable();
-        await writable.write(code);
-        await writable.close();
+        await writable.write(code); await writable.close();
       } else {
         const blob = new Blob([code], { type: 'text/javascript' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = name; a.click();
+        const a = document.createElement('a'); a.href = url; a.download = name; a.click();
         URL.revokeObjectURL(url);
       }
-      setFiles(prev => prev.map((f, i) =>
-        i === activeFileIdx ? { ...f, modified: false } : f
-      ));
+      setFiles(prev => prev.map((f, i) => i === activeFileIdx ? { ...f, modified: false } : f));
       addConsoleLine({ type: 'info', msg: `File saved: ${name}`, ts: ts() });
     } catch { /* cancelled */ }
   }, [code, files, activeFileIdx, addConsoleLine]);
 
-  // Jump to definition
   const jumpToDefinition = useCallback((name) => {
     const def = astRef.current.getDefinition(name);
     if (def) {
-      addConsoleLine({
-        type: 'info',
-        msg: `⤷ "${name}" defined at line ${def.line} (${def.symbol.type})`,
-        ts: ts()
-      });
+      addConsoleLine({ type: 'info', msg: `⤷ "${name}" defined at line ${def.line} (${def.symbol.type})`, ts: ts() });
       return def.line;
     } else {
       addConsoleLine({ type: 'warn', msg: `Symbol "${name}" — definition not found`, ts: ts() });
@@ -295,15 +317,14 @@ export function useDebugger() {
   }, [addConsoleLine]);
 
   return {
-    // State
-    code, engineState, breakpoints, currentStep,
+    code, engineState, breakpoints, breakpointData, currentStep,
     variables, callStack, consoleLines, timelineEvents,
     watchExprs, highlightParts, astErrors, fnRanges,
     files, activeFileIdx,
 
-    // Actions
     onCodeChange, toggleBreakpoint,
-    doRun, doStep, doStop, doClear,
+    setConditionalBreakpoint, setLogpoint, setHitCountBreakpoint,
+    doRun, doStep, doStop, doClear, continueToCursor,
     evaluateExpr, consoleHistoryUp, consoleHistoryDown,
     addWatch, removeWatch, evaluateWatch,
     addFile, switchFile, closeFile, openFile, saveFile,
