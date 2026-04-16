@@ -316,8 +316,8 @@ html, body, #root {
 
 /* Center panels */
 .panel-stack { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
-.panel-vars, .panel-callstack, .panel-watch { flex: 1; min-height: 0; }
-.vars-content, .callstack-content, .watch-content { padding: 8px 10px; overflow-y: auto; flex: 1; font-size: 12px; }
+.panel-vars, .panel-callstack, .panel-watch, .panel-profiler { flex: 1; min-height: 0; }
+.vars-content, .callstack-content, .watch-content, .profiler-content { padding: 8px 10px; overflow-y: auto; flex: 1; font-size: 12px; }
 
 .empty-state {
   color: var(--text-muted); font-size: 11px; padding: 12px 4px;
@@ -410,6 +410,18 @@ html, body, #root {
   caret-color: var(--accent-warm);
 }
 
+/* Profiler & Flame Chart */
+.flame-chart-container { display: flex; flex-direction: column; width: 100%; height: 100%; border: 1px solid rgba(255,255,255,0.02); border-radius: 4px; overflow: hidden; background: rgba(0,0,0,0.1); }
+.flame-node-wrapper { display: flex; flex-direction: column; }
+.flame-node-rect {
+  height: 20px; border: 1px solid rgba(0,0,0,0.3); border-radius: 2px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: crosshair; overflow: hidden; transition: filter var(--transition);
+}
+.flame-node-rect:hover { filter: brightness(1.2); }
+.flame-node-label { font-size: 9px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); white-space: nowrap; pointer-events: none; }
+.flame-node-children { display: flex; width: 100%; }
+
 /* Bottom bar */
 .bottom-bar { display: grid; grid-template-columns: 280px 1fr; gap: 6px; height: 80px; flex-shrink: 0; }
 .panel-breakpoints .bp-list {
@@ -497,6 +509,11 @@ html, body, #root {
 .line-numbers span.bp-logpoint .bp-gutter-icon { color: var(--accent-lilac); }
 .line-numbers span.bp-hitcount { color: var(--accent-cool); }
 .line-numbers span.bp-hitcount .bp-gutter-icon { color: var(--accent-cool); }
+
+/* Hot-Path Highlighting */
+.line-numbers span.has-heat-1 { background: rgba(212,165,116,0.06); color: rgba(212,165,116,0.9); }
+.line-numbers span.has-heat-2 { background: rgba(212,123,138,0.15); color: rgba(212,123,138,1); font-weight: bold; }
+.line-numbers span.has-heat-3 { background: rgba(212,70,70,0.35); color: #fff; font-weight: bold; box-shadow: inset 2px 0 0 rgba(212,70,70,0.8); }
 
 /* BP chip types */
 .bp-chip-conditional { background: rgba(212,165,116,0.06); border-color: rgba(212,165,116,0.2); color: var(--accent-warm); }

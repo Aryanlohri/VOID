@@ -9,6 +9,7 @@ import CallStackPanel from './components/CallStackPanel.jsx';
 import WatchPanel from './components/WatchPanel.jsx';
 import ConsolePanel from './components/ConsolePanel.jsx';
 import BottomBar from './components/BottomBar.jsx';
+import ProfilerPanel from './components/ProfilerPanel.jsx';
 
 export default function App() {
   const [theme, setTheme] = useState('dark');
@@ -95,6 +96,7 @@ export default function App() {
               onRemove={db.removeWatch}
               evaluateWatch={db.evaluateWatch}
             />
+            <ProfilerPanel profilerData={db.profilerData} />
           </div>
 
           <ConsolePanel
