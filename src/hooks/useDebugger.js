@@ -26,6 +26,7 @@ export function useDebugger() {
   const [highlightParts, setHighlightParts] = useState([]);
   const [astErrors, setAstErrors] = useState([]);
   const [fnRanges, setFnRanges] = useState([]);
+  const [profilerData, setProfilerData] = useState(null);
 
   const [files, setFiles] = useState([
     { name: 'sample.js', content: SAMPLE_CODE, modified: false }
@@ -94,6 +95,10 @@ export function useDebugger() {
 
       case 'stopped':
         setCurrentStep(null);
+        break;
+
+      case 'profiler-update':
+        setProfilerData(data.profilerData);
         break;
     }
   }, [addConsoleLine]);
@@ -205,6 +210,7 @@ export function useDebugger() {
     setCallStack([]);
     setCurrentStep(null);
     setConsoleLines([]);
+    setProfilerData(null);
   }, []);
 
   // Console — now uses real scope from runtime
@@ -320,7 +326,7 @@ export function useDebugger() {
     code, engineState, breakpoints, breakpointData, currentStep,
     scopeChain, callStack, consoleLines, timelineEvents,
     watchExprs, highlightParts, astErrors, fnRanges,
-    files, activeFileIdx,
+    files, activeFileIdx, profilerData,
 
     onCodeChange, toggleBreakpoint,
     setConditionalBreakpoint, setLogpoint, setHitCountBreakpoint,
