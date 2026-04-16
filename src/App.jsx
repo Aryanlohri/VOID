@@ -87,7 +87,7 @@ export default function App() {
           </div>
 
           <div className="panel-stack">
-            <VariablesPanel variables={db.variables} />
+            <VariablesPanel scopeChain={db.scopeChain} />
             <CallStackPanel callStack={db.callStack} />
             <WatchPanel
               watchExprs={db.watchExprs}
