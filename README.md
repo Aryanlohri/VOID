@@ -149,7 +149,7 @@ npm run dev
 - [x] **React Conversion**: Full port to Vite + React component architecture
 - [x] **Phase 3 — True Step Engine**: AST-instrumented execution, async gates, step into/over/out, conditional breakpoints, logpoints, hit count breakpoints, exception breakpoints, continue to cursor
 - [x] **Phase 4 — Memory Inspector**: Heap snapshots, closure scope chains, prototype explorer
-- [ ] **Phase 5 — Profiler**: CPU flame chart, hot-path highlighting, event loop latency
+- [x] **Phase 5 — Profiler**: CPU flame chart, hot-path highlighting, event loop latency
 - [ ] **Phase 6 — Async/Network**: Promise chain visualizer, fetch inspector
 - [ ] **Phase 7 — Multi-Language**: Python via Pyodide, TypeScript support
 - [ ] **Phase 8 — Remote Debugging**: Chrome DevTools Protocol integration
@@ -157,6 +157,11 @@ npm run dev
 ---
 
 ## 📄 Changelog
+
+### v5.0.0 — Phase 5: Profiler
+- **CPU Flame Chart**: Visualizing execution time across the call stack with reactive tree rendering.
+- **Hot-Path Highlighting**: Editor gutter color-codes lines based on execution frequency.
+- **Event Loop Latency**: Real-time tracking of async pause/resume latency.
 
 ### v4.0.0 — Phase 4: Memory Inspector
 - **Closure Scope Chains**: Code instrumenter tracks lexical environments and captures variables hierarchically (Local, Closure, Global)
