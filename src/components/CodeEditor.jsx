@@ -4,7 +4,7 @@ export default function CodeEditor({
   code, highlightParts, breakpoints, breakpointData, currentStep,
   astErrors, fnRanges, onCodeChange, onToggleBreakpoint,
   onJumpToDefinition, onSetConditionalBP, onSetLogpoint, onSetHitCountBP,
-  onContinueToCursor, engineState
+  onContinueToCursor, engineState, profilerData
 }) {
   const editorRef = useRef(null);
   const overlayRef = useRef(null);
@@ -143,10 +143,19 @@ export default function CodeEditor({
             const hasFold = fnRange && fnRange.endLine - fnRange.startLine > 1;
             const isFolded = foldedRanges.has(ln);
 
+            const hitCount = profilerData && profilerData.hitCounts && profilerData.hitCounts[ln] ? profilerData.hitCounts[ln] : 0;
+            let heatClass = '';
+            if (hitCount > 0) {
+              if (hitCount >= 50) heatClass = 'has-heat-3';
+              else if (hitCount >= 10) heatClass = 'has-heat-2';
+              else heatClass = 'has-heat-1';
+            }
+
             const cls = [
               hasBP ? getBpClass(ln) || 'has-bp' : '',
               isExec ? 'exec-line' : '',
-              hasErr ? 'has-error' : ''
+              hasErr ? 'has-error' : '',
+              heatClass
             ].filter(Boolean).join(' ');
 
             return (
