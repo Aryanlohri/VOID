@@ -198,6 +198,12 @@ export class DebugEngine {
       // Execution completed normally
       if (this.state !== 'idle') {
         this.state = 'idle';
+        // Compute total execution time
+        if (this.runtime && this.runtime.profilerData) {
+          const prof = this.runtime.profilerData;
+          if (prof.flameChart) prof.flameChart.duration = performance.now() - prof.flameChart.start;
+          this.onEvent('profiler-update', { profilerData: prof });
+        }
         this.onEvent('state-change', { state: 'idle' });
         this.onEvent('execution-done', {});
       }
@@ -212,6 +218,11 @@ export class DebugEngine {
         onConsoleMsg({ type: 'error', msg: `RuntimeError: ${e.message}`, ts: ts() });
         this.timeline.record('err', `ERR: ${e.message.slice(0, 20)}`, {});
         this.state = 'idle';
+        if (this.runtime && this.runtime.profilerData) {
+          const prof = this.runtime.profilerData;
+          if (prof.flameChart) prof.flameChart.duration = performance.now() - prof.flameChart.start;
+          this.onEvent('profiler-update', { profilerData: prof });
+        }
         this.onEvent('state-change', { state: 'idle' });
         this.onEvent('execution-done', { error: e.message });
       }
@@ -234,6 +245,7 @@ export class DebugEngine {
       stack: checkpoint.callStack,
       reason: checkpoint.reason,
       bpType: checkpoint.bpType,
+      profilerData: checkpoint.profilerData,
     };
 
     if (checkpoint.reason === 'breakpoint') {
@@ -248,6 +260,10 @@ export class DebugEngine {
       this.timeline.record('err', `EXC:${checkpoint.line}`, { line: checkpoint.line });
     } else {
       this.onEvent('step', { step, idx: checkpoint.line });
+    }
+    
+    if (checkpoint.profilerData) {
+      this.onEvent('profiler-update', { profilerData: checkpoint.profilerData });
     }
 
     this.onEvent('timeline-update', { events: this.timeline.getEvents() });
@@ -364,6 +380,11 @@ export class DebugEngine {
 
       if (this.state !== 'idle') {
         this.state = 'idle';
+        if (this.runtime && this.runtime.profilerData) {
+          const prof = this.runtime.profilerData;
+          if (prof.flameChart) prof.flameChart.duration = performance.now() - prof.flameChart.start;
+          this.onEvent('profiler-update', { profilerData: prof });
+        }
         this.onEvent('state-change', { state: 'idle' });
         this.onEvent('execution-done', {});
       }
@@ -375,6 +396,11 @@ export class DebugEngine {
       } else {
         onConsoleMsg({ type: 'error', msg: `RuntimeError: ${e.message}`, ts: ts() });
         this.state = 'idle';
+        if (this.runtime && this.runtime.profilerData) {
+          const prof = this.runtime.profilerData;
+          if (prof.flameChart) prof.flameChart.duration = performance.now() - prof.flameChart.start;
+          this.onEvent('profiler-update', { profilerData: prof });
+        }
         this.onEvent('state-change', { state: 'idle' });
         this.onEvent('execution-done', { error: e.message });
       }

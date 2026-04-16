@@ -52,6 +52,21 @@ export class ExecutionRuntime {
 
     // Performance: max checkpoints to prevent infinite loops
     this.MAX_CHECKPOINTS = 100000;
+
+    // Phase 5: Profiler Data
+    this.profilerData = this._createEmptyProfilerData();
+    this.flameNodeStack = [this.profilerData.flameChart];
+    this._resumeTs = 0;
+  }
+
+  _createEmptyProfilerData() {
+    return {
+      flameChart: { name: 'global', line: 0, start: 0, duration: 0, children: [] },
+      hitCounts: {},
+      latencies: [], // keep last 20
+      avgLatency: 0,
+      totalExecutionTime: 0
+    };
   }
 
   /**
@@ -69,6 +84,9 @@ export class ExecutionRuntime {
     this._stopped = false;
     this._lastException = null;
     this.bpManager.resetHitCounts();
+    this.profilerData = this._createEmptyProfilerData();
+    this.flameNodeStack = [this.profilerData.flameChart];
+    this._resumeTs = 0;
   }
 
   /**
@@ -90,6 +108,9 @@ export class ExecutionRuntime {
     }
 
     this.lastLine = line;
+
+    // Profiler: Hit Counts
+    this.profilerData.hitCounts[line] = (this.profilerData.hitCounts[line] || 0) + 1;
 
     // Capture scope variables
     let scopeChain = [];
@@ -142,15 +163,36 @@ export class ExecutionRuntime {
       callStack: this.callStack.map(f => ({ ...f })),
       reason: pauseReason,
       bpType: this.bpManager.get(line)?.type || null,
+      profilerData: this.profilerData,
     };
 
     // Notify the UI
     this.onCheckpoint(checkpointData);
 
+    const pauseRealStart = performance.now();
+
     // Create a Promise that blocks execution until resumed
     await new Promise((resolve, reject) => {
       this._gate = { resolve, reject };
     });
+
+    const pauseRealEnd = performance.now();
+    const blockedTime = pauseRealEnd - pauseRealStart;
+
+    // Adjust start times of all active flame chart nodes to subtract pause time
+    for (const node of this.flameNodeStack) {
+      node.start += blockedTime;
+    }
+
+    // Measure event loop latency (time between resume() call and here)
+    if (this._resumeTs > 0) {
+      const latency = performance.now() - this._resumeTs;
+      this.profilerData.latencies.push(latency);
+      if (this.profilerData.latencies.length > 20) this.profilerData.latencies.shift();
+      const sum = this.profilerData.latencies.reduce((a, b) => a + b, 0);
+      this.profilerData.avgLatency = sum / this.profilerData.latencies.length;
+    }
+    this._resumeTs = 0;
 
     this._paused = false;
   }
@@ -262,6 +304,13 @@ export class ExecutionRuntime {
       line,
       args: { ...args }
     });
+
+    // Profiler: Flame chart node
+    const newNode = { name: name || '(anonymous)', line, start: performance.now(), duration: 0, children: [] };
+    const parent = this.flameNodeStack[this.flameNodeStack.length - 1];
+    parent.children.push(newNode);
+    this.flameNodeStack.push(newNode);
+
     this.onFrameChange([...this.callStack]);
   }
 
@@ -270,6 +319,13 @@ export class ExecutionRuntime {
    */
   popFrame() {
     this.callStack.pop();
+
+    // Profiler: complete flame chart node
+    const node = this.flameNodeStack.pop();
+    if (node) {
+      node.duration = performance.now() - node.start;
+    }
+
     this.onFrameChange([...this.callStack]);
   }
 
@@ -309,6 +365,7 @@ export class ExecutionRuntime {
     if (this._gate) {
       const { resolve } = this._gate;
       this._gate = null;
+      this._resumeTs = performance.now();
       resolve();
     }
   }
