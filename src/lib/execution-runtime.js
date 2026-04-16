@@ -92,11 +92,17 @@ export class ExecutionRuntime {
     this.lastLine = line;
 
     // Capture scope variables
-    let scopeVars = {};
+    let scopeChain = [];
     try {
-      scopeVars = scopeFn ? scopeFn() : {};
+      scopeChain = scopeFn ? scopeFn() : [];
     } catch {
       // scope capture can fail for destructured/complex vars
+    }
+
+    // Flat scope for breakpoint evaluation
+    let flatScopeVars = {};
+    for (let i = scopeChain.length - 1; i >= 0; i--) {
+      Object.assign(flatScopeVars, scopeChain[i].vars);
     }
 
     // Check breakpoint manager for this line
@@ -104,7 +110,7 @@ export class ExecutionRuntime {
     let pauseReason = null;
 
     if (this.bpManager.has(line)) {
-      const result = this.bpManager.evaluate(line, scopeVars);
+      const result = this.bpManager.evaluate(line, flatScopeVars);
 
       // Handle logpoint output (never pauses)
       if (result.logOutput) {
@@ -131,8 +137,8 @@ export class ExecutionRuntime {
     // Build checkpoint data for the UI
     const checkpointData = {
       line,
-      scopeVars: this._serializeVars(scopeVars),
-      rawVars: scopeVars,
+      scopeChain,
+      rawVars: flatScopeVars,
       callStack: this.callStack.map(f => ({ ...f })),
       reason: pauseReason,
       bpType: this.bpManager.get(line)?.type || null,
@@ -279,7 +285,7 @@ export class ExecutionRuntime {
 
       const checkpointData = {
         line,
-        scopeVars: { __exception: { type: 'error', v: error.message } },
+        scopeChain: [{ name: 'Exception', type: 'Local', vars: { __exception: error } }],
         rawVars: { __exception: error },
         callStack: this.callStack.map(f => ({ ...f })),
         reason: 'exception',
@@ -307,43 +313,7 @@ export class ExecutionRuntime {
     }
   }
 
-  /**
-   * Serialize variable values for the UI (convert to {type, v} format).
-   */
-  _serializeVars(vars) {
-    const result = {};
-    for (const [key, val] of Object.entries(vars)) {
-      if (key.startsWith('__')) continue; // skip internal vars
-      result[key] = this._serializeValue(key, val);
-    }
-    return result;
-  }
-
-  _serializeValue(name, val) {
-    if (val === null)      return { type: 'null', v: 'null' };
-    if (val === undefined) return { type: 'undefined', v: 'undefined' };
-
-    const t = typeof val;
-    if (t === 'number')    return { type: 'number', v: String(val) };
-    if (t === 'boolean')   return { type: 'bool', v: String(val) };
-    if (t === 'string')    return { type: 'str', v: val.length > 50 ? val.slice(0, 50) + '…' : val };
-    if (t === 'function')  return { type: 'fn', v: `[Function: ${val.name || 'anonymous'}]` };
-
-    if (Array.isArray(val)) {
-      return { type: 'array', v: `Array(${val.length})` };
-    }
-
-    if (t === 'object') {
-      try {
-        const preview = JSON.stringify(val);
-        return { type: 'object', v: preview.length > 60 ? preview.slice(0, 60) + '…' : preview };
-      } catch {
-        return { type: 'object', v: '[Object]' };
-      }
-    }
-
-    return { type: 'unknown', v: String(val) };
-  }
+  // _serializeVars is removed as we now pass the raw objects for exploration
 
   /**
    * Emit a console message (used by logpoints, internal messages).

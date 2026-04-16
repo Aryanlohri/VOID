@@ -18,7 +18,7 @@ export function useDebugger() {
   const [breakpoints, setBreakpoints] = useState(new Set());
   const [breakpointData, setBreakpointData] = useState([]);
   const [currentStep, setCurrentStep] = useState(null);
-  const [variables, setVariables] = useState({});
+  const [scopeChain, setScopeChain] = useState([]);
   const [callStack, setCallStack] = useState([]);
   const [consoleLines, setConsoleLines] = useState([]);
   const [timelineEvents, setTimelineEvents] = useState([]);
@@ -45,14 +45,14 @@ export function useDebugger() {
 
       case 'step':
         setCurrentStep(data.step);
-        setVariables(data.step.vars || {});
+        setScopeChain(data.step.scopeChain || []);
         setCallStack(data.step.stack || []);
         setTimelineEvents(timelineRef.current.getEvents());
         break;
 
       case 'breakpoint-hit':
         setCurrentStep(data.step);
-        setVariables(data.step.vars || {});
+        setScopeChain(data.step.scopeChain || []);
         setCallStack(data.step.stack || []);
         setTimelineEvents(timelineRef.current.getEvents());
         addConsoleLine({
@@ -64,7 +64,7 @@ export function useDebugger() {
 
       case 'exception-hit':
         setCurrentStep(data.step);
-        setVariables(data.step.vars || {});
+        setScopeChain(data.step.scopeChain || []);
         setCallStack(data.step.stack || []);
         setTimelineEvents(timelineRef.current.getEvents());
         addConsoleLine({
@@ -201,7 +201,7 @@ export function useDebugger() {
     if (engineRef.current) engineRef.current.stop();
     timelineRef.current.clear();
     setTimelineEvents([]);
-    setVariables({});
+    setScopeChain([]);
     setCallStack([]);
     setCurrentStep(null);
     setConsoleLines([]);
@@ -318,7 +318,7 @@ export function useDebugger() {
 
   return {
     code, engineState, breakpoints, breakpointData, currentStep,
-    variables, callStack, consoleLines, timelineEvents,
+    scopeChain, callStack, consoleLines, timelineEvents,
     watchExprs, highlightParts, astErrors, fnRanges,
     files, activeFileIdx,
 
