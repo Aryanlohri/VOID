@@ -148,7 +148,7 @@ npm run dev
 - [x] **Phase 2 — Source Intelligence**: AST parsing (Acorn), syntax highlighting, multi-file tabs, code folding
 - [x] **React Conversion**: Full port to Vite + React component architecture
 - [x] **Phase 3 — True Step Engine**: AST-instrumented execution, async gates, step into/over/out, conditional breakpoints, logpoints, hit count breakpoints, exception breakpoints, continue to cursor
-- [ ] **Phase 4 — Memory Inspector**: Heap snapshots, closure scope chains, prototype explorer
+- [x] **Phase 4 — Memory Inspector**: Heap snapshots, closure scope chains, prototype explorer
 - [ ] **Phase 5 — Profiler**: CPU flame chart, hot-path highlighting, event loop latency
 - [ ] **Phase 6 — Async/Network**: Promise chain visualizer, fetch inspector
 - [ ] **Phase 7 — Multi-Language**: Python via Pyodide, TypeScript support
@@ -157,6 +157,11 @@ npm run dev
 ---
 
 ## 📄 Changelog
+
+### v4.0.0 — Phase 4: Memory Inspector
+- **Closure Scope Chains**: Code instrumenter tracks lexical environments and captures variables hierarchically (Local, Closure, Global)
+- **Prototype Explorer**: Real runtime prototype chain inspection via `ObjectTree` component
+- **Heap Snapshots**: Interactive, expandable object state within `VariablesPanel` powered directly by browser memory references
 
 ### v3.0.0 — Phase 3: True Step Engine
 - **AST-Instrumented Execution**: Code is transformed via Acorn AST to insert async checkpoints at every statement
