@@ -51,7 +51,7 @@ export class CodeInstrumenter {
 
       // Collect insertion operations
       const ops = [];
-      this._walkForInsertions(ast, ops, scopeMap, [], null);
+      this._walkForInsertions(ast, ops, scopeMap, scopeMap.get(ast), null);
 
       // Apply operations to source (process from end to preserve offsets)
       const instrumented = this._applyOps(source, ops);
@@ -70,31 +70,31 @@ export class CodeInstrumenter {
    * Build a map of scope → variable names for scope capture closures.
    */
   _buildScopeMap(ast) {
-    const scopes = new Map(); // node → Set<string>
-    const globalVars = new Set();
+    const scopes = new Map();
+    const createScope = (type, name, parent) => ({ type, name, vars: new Set(), parent });
+    const globalScope = createScope('Global', '(global)', null);
 
     const walk = (node, currentScope) => {
       if (!node || typeof node !== 'object') return;
 
-      // Track variable declarations
       if (node.type === 'VariableDeclarator' && node.id?.name) {
-        currentScope.add(node.id.name);
+        currentScope.vars.add(node.id.name);
       }
 
-      // Function params create new scope
       if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression') {
-        const fnScope = new Set(currentScope); // inherit parent scope
+        const fnName = node.id?.name || '(anonymous)';
+        const fnScope = createScope('Closure', fnName, currentScope);
+        
         if (node.params) {
           for (const p of node.params) {
-            if (p.type === 'Identifier') fnScope.add(p.name);
-            else if (p.type === 'AssignmentPattern' && p.left?.name) fnScope.add(p.left.name);
-            else if (p.type === 'RestElement' && p.argument?.name) fnScope.add(p.argument.name);
+            if (p.type === 'Identifier') fnScope.vars.add(p.name);
+            else if (p.type === 'AssignmentPattern' && p.left?.name) fnScope.vars.add(p.left.name);
+            else if (p.type === 'RestElement' && p.argument?.name) fnScope.vars.add(p.argument.name);
           }
         }
-        if (node.id?.name) fnScope.add(node.id.name);
+        if (node.id?.name) fnScope.vars.add(node.id.name);
         scopes.set(node, fnScope);
 
-        // Walk body with fn scope
         if (node.body) {
           if (Array.isArray(node.body)) {
             for (const child of node.body) walk(child, fnScope);
@@ -102,31 +102,27 @@ export class CodeInstrumenter {
             walk(node.body, fnScope);
           }
         }
-        return; // don't walk children again
+        return;
       }
 
-      // Catch clause param
       if (node.type === 'CatchClause' && node.param?.name) {
-        currentScope.add(node.param.name);
+        currentScope.vars.add(node.param.name);
       }
 
-      // For-in / for-of loop variable
       if ((node.type === 'ForInStatement' || node.type === 'ForOfStatement') && node.left) {
         if (node.left.type === 'VariableDeclaration') {
           for (const decl of node.left.declarations) {
-            if (decl.id?.name) currentScope.add(decl.id.name);
+            if (decl.id?.name) currentScope.vars.add(decl.id.name);
           }
         }
       }
 
-      // For loop init
       if (node.type === 'ForStatement' && node.init?.type === 'VariableDeclaration') {
         for (const decl of node.init.declarations) {
-          if (decl.id?.name) currentScope.add(decl.id.name);
+          if (decl.id?.name) currentScope.vars.add(decl.id.name);
         }
       }
 
-      // Recurse
       for (const key of Object.keys(node)) {
         if (key === 'loc' || key === 'range' || key === 'type') continue;
         const child = node[key];
@@ -140,8 +136,8 @@ export class CodeInstrumenter {
       }
     };
 
-    walk(ast, globalVars);
-    scopes.set(ast, globalVars);
+    walk(ast, globalScope);
+    scopes.set(ast, globalScope);
     return scopes;
   }
 
@@ -149,7 +145,7 @@ export class CodeInstrumenter {
    * Walk the AST and collect insertion operations.
    * Each op = { pos, text, type }
    */
-  _walkForInsertions(node, ops, scopeMap, scopeVarNames, enclosingFn) {
+  _walkForInsertions(node, ops, scopeMap, currentScopeNode, enclosingFn) {
     if (!node || typeof node !== 'object') return;
 
     // Handle function declarations/expressions — make async + wrap body
@@ -157,8 +153,8 @@ export class CodeInstrumenter {
       const fnName = node.id?.name || '(anonymous)';
       const line = node.loc?.start?.line || 0;
 
-      // Get scope variables for this function
-      const fnScope = scopeMap.get(node) || new Set();
+      // Get scope node for this function
+      const fnScopeNode = scopeMap.get(node) || currentScopeNode;
       const paramNames = (node.params || []).map(p => {
         if (p.type === 'Identifier') return p.name;
         if (p.type === 'AssignmentPattern' && p.left?.name) return p.left.name;
@@ -189,18 +185,17 @@ export class CodeInstrumenter {
 
       // Walk the function body with updated scope
       if (body) {
-        const childVars = [...(scopeMap.get(node) || [])];
-        this._walkBody(body, ops, scopeMap, childVars, node);
+        this._walkBody(body, ops, scopeMap, fnScopeNode, node);
       }
       return;
     }
 
     // Walk into program body
     if (node.type === 'Program') {
-      const globalVars = [...(scopeMap.get(node) || [])];
+      const globalScopeNode = scopeMap.get(node) || currentScopeNode;
       for (const stmt of node.body) {
-        this._instrumentStatement(stmt, ops, scopeMap, globalVars, enclosingFn);
-        this._walkForInsertions(stmt, ops, scopeMap, globalVars, enclosingFn);
+        this._instrumentStatement(stmt, ops, scopeMap, globalScopeNode, enclosingFn);
+        this._walkForInsertions(stmt, ops, scopeMap, globalScopeNode, enclosingFn);
       }
       return;
     }
@@ -212,11 +207,11 @@ export class CodeInstrumenter {
       if (Array.isArray(child)) {
         for (const c of child) {
           if (c && typeof c === 'object' && c.type) {
-            this._walkForInsertions(c, ops, scopeMap, scopeVarNames, enclosingFn);
+            this._walkForInsertions(c, ops, scopeMap, currentScopeNode, enclosingFn);
           }
         }
       } else if (child && typeof child === 'object' && child.type) {
-        this._walkForInsertions(child, ops, scopeMap, scopeVarNames, enclosingFn);
+        this._walkForInsertions(child, ops, scopeMap, currentScopeNode, enclosingFn);
       }
     }
   }
@@ -224,19 +219,19 @@ export class CodeInstrumenter {
   /**
    * Walk a function/block body, instrumenting each statement.
    */
-  _walkBody(body, ops, scopeMap, scopeVarNames, enclosingFn) {
+  _walkBody(body, ops, scopeMap, currentScopeNode, enclosingFn) {
     if (!body) return;
     const stmts = body.type === 'BlockStatement' ? body.body : [body];
     for (const stmt of stmts) {
-      this._instrumentStatement(stmt, ops, scopeMap, scopeVarNames, enclosingFn);
-      this._walkForInsertions(stmt, ops, scopeMap, scopeVarNames, enclosingFn);
+      this._instrumentStatement(stmt, ops, scopeMap, currentScopeNode, enclosingFn);
+      this._walkForInsertions(stmt, ops, scopeMap, currentScopeNode, enclosingFn);
     }
   }
 
   /**
    * Insert a checkpoint before a statement node.
    */
-  _instrumentStatement(stmt, ops, scopeMap, scopeVarNames, enclosingFn) {
+  _instrumentStatement(stmt, ops, scopeMap, currentScopeNode, enclosingFn) {
     if (!stmt || !stmt.loc) return;
 
     // Don't instrument these
@@ -245,14 +240,32 @@ export class CodeInstrumenter {
 
     const line = stmt.loc.start.line;
 
-    // Build scope capture: () => ({var1, var2, ...})
-    // Filter to only include vars that are safe to reference
-    const safeVars = scopeVarNames.filter(v =>
-      /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(v) && v !== '__rt' && !v.startsWith('__e')
-    );
-    const scopeCapture = safeVars.length > 0
-      ? `() => { try { return {${safeVars.join(',')}}; } catch { return {}; } }`
-      : '() => ({})';
+    // Build hierarchical scope capture: () => [ { name: 'Local', vars: { ... } }, { name: 'Closure', vars: { ... } } ]
+    let captureParts = [];
+    let curr = currentScopeNode;
+    let isFirst = true;
+
+    while (curr) {
+      const safeVars = Array.from(curr.vars).filter(v =>
+        /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(v) && v !== '__rt' && !v.startsWith('__e')
+      );
+      
+      // Safe individualized variable capture to handle TDZ without breaking the entire scope
+      const varProps = safeVars.map(v => `"${v}": (() => { try { return ${v}; } catch { return undefined; } })()`);
+      const varMap = `{ ${varProps.join(', ')} }`;
+
+      let scopeName = curr.name;
+      if (curr.type === 'Global') scopeName = 'Global';
+      else if (isFirst) scopeName = 'Local';
+      else scopeName = `Closure (${curr.name})`;
+
+      captureParts.push(`{ name: '${this._escapeSingle(scopeName)}', type: '${curr.type}', vars: ${varMap} }`);
+      
+      curr = curr.parent;
+      isFirst = false;
+    }
+
+    const scopeCapture = `() => { try { return [ ${captureParts.join(', ')} ]; } catch { return []; } }`;
 
     const checkpoint = `await __rt.check(${line}, ${scopeCapture});\n`;
 
@@ -271,17 +284,8 @@ export class CodeInstrumenter {
     if (stmt.type === 'ForInStatement' || stmt.type === 'ForOfStatement') {
       if (stmt.body && stmt.body.type === 'BlockStatement' && stmt.body.body.length > 0) {
         const first = stmt.body.body[0];
-        // Add loop variable to scope capture
-        const loopVarNames = [...scopeVarNames];
-        if (stmt.left?.declarations?.[0]?.id?.name) {
-          loopVarNames.push(stmt.left.declarations[0].id.name);
-        }
-        const loopSafeVars = loopVarNames.filter(v => /^[a-zA-Z_$]\w*$/.test(v) && v !== '__rt');
-        const loopCapture = loopSafeVars.length > 0
-          ? `() => { try { return {${loopSafeVars.join(',')}}; } catch { return {}; } }`
-          : '() => ({})';
         const loopLine = first.loc?.start?.line || line;
-        ops.push({ pos: first.start, text: `await __rt.check(${loopLine}, ${loopCapture});\n`, type: 'insert' });
+        ops.push({ pos: first.start, text: `await __rt.check(${loopLine}, ${scopeCapture});\n`, type: 'insert' });
       }
     }
 
@@ -289,15 +293,15 @@ export class CodeInstrumenter {
     if (stmt.type === 'IfStatement' && stmt.consequent) {
       if (stmt.consequent.type === 'BlockStatement' && stmt.consequent.body.length > 0) {
         const first = stmt.consequent.body[0];
-        this._instrumentStatement(first, ops, scopeMap, scopeVarNames, enclosingFn);
+        this._instrumentStatement(first, ops, scopeMap, currentScopeNode, enclosingFn);
       }
       if (stmt.alternate) {
         if (stmt.alternate.type === 'BlockStatement' && stmt.alternate.body.length > 0) {
           const first = stmt.alternate.body[0];
-          this._instrumentStatement(first, ops, scopeMap, scopeVarNames, enclosingFn);
+          this._instrumentStatement(first, ops, scopeMap, currentScopeNode, enclosingFn);
         } else if (stmt.alternate.type !== 'IfStatement') {
           // Single-statement else
-          this._instrumentStatement(stmt.alternate, ops, scopeMap, scopeVarNames, enclosingFn);
+          this._instrumentStatement(stmt.alternate, ops, scopeMap, currentScopeNode, enclosingFn);
         }
       }
     }
