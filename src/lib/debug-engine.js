@@ -166,6 +166,7 @@ export class DebugEngine {
       (checkpoint) => this._onCheckpoint(checkpoint),
       (msg) => onConsoleMsg(msg),
       (stack) => this._onFrameChange(stack),
+      (data) => this.onEvent('async-network-update', data)
     );
     this.runtime.reset();
 
@@ -186,11 +187,14 @@ export class DebugEngine {
     // Execute the instrumented code
     try {
       const __rt = this.runtime;
-      const fn = new Function('__rt', 'console', `'use strict'; return ${instrumented}`);
+      const { proxyFetch, ProxyPromise } = this._createAsyncOverrides(__rt);
+      const fn = new Function('__rt', 'console', 'fetch', 'Promise', `'use strict'; return ${instrumented}`);
 
       this._executionPromise = fn(
         __rt,
-        { log: logCapture, warn: logCapture, error: logCapture, info: logCapture }
+        { log: logCapture, warn: logCapture, error: logCapture, info: logCapture },
+        proxyFetch,
+        ProxyPromise
       );
 
       await this._executionPromise;
@@ -352,6 +356,7 @@ export class DebugEngine {
       (checkpoint) => this._onCheckpoint(checkpoint),
       (msg) => onConsoleMsg(msg),
       (stack) => this._onFrameChange(stack),
+      (data) => this.onEvent('async-network-update', data)
     );
     this.runtime.reset();
     this.runtime.mode = 'into'; // pause at first checkpoint
@@ -371,10 +376,13 @@ export class DebugEngine {
 
     try {
       const __rt = this.runtime;
-      const fn = new Function('__rt', 'console', `'use strict'; return ${instrumented}`);
+      const { proxyFetch, ProxyPromise } = this._createAsyncOverrides(__rt);
+      const fn = new Function('__rt', 'console', 'fetch', 'Promise', `'use strict'; return ${instrumented}`);
       this._executionPromise = fn(
         __rt,
-        { log: logCapture, warn: logCapture, error: logCapture, info: logCapture }
+        { log: logCapture, warn: logCapture, error: logCapture, info: logCapture },
+        proxyFetch,
+        ProxyPromise
       );
       await this._executionPromise;
 
@@ -410,5 +418,87 @@ export class DebugEngine {
   /** Get the current checkpoint data (for REPL context). */
   getCurrentScope() {
     return this._currentCheckpoint?.rawVars || {};
+  }
+
+  // === Phase 6: Async Overrides ===
+  _createAsyncOverrides(__rt) {
+    let nextPromiseId = 1;
+    let nextFetchId = 1;
+
+    const proxyFetch = async (url, options = {}) => {
+      const id = nextFetchId++;
+      const method = options.method || 'GET';
+      if (__rt) __rt.trackFetch(id, url, method);
+      
+      try {
+        const res = await window.fetch(url, options);
+        const clone = res.clone();
+        let preview = '';
+        try {
+           const text = await clone.text();
+           preview = text.slice(0, 50) + (text.length > 50 ? '...' : '');
+        } catch { preview = 'opaque'; }
+
+        if (__rt) __rt.updateFetch(id, res.status, preview);
+        return res;
+      } catch (err) {
+        if (__rt) __rt.updateFetch(id, 'error', err.message);
+        throw err;
+      }
+    };
+
+    class ProxyPromise extends Promise {
+      constructor(executor) {
+        const id = nextPromiseId++;
+        if (__rt) __rt.trackPromise(id, 'pending');
+
+        super((resolve, reject) => {
+          return executor(
+            (val) => {
+              let displayVal = val;
+              if (val && typeof val === 'object') displayVal = '{object}';
+              else if (typeof val === 'string') displayVal = `"${val.slice(0,30)}"`;
+              else displayVal = String(val);
+
+              if (__rt) __rt.updatePromise(id, 'fulfilled', displayVal);
+              return resolve(val);
+            },
+            (err) => {
+              if (__rt) __rt.updatePromise(id, 'rejected', String(err));
+              return reject(err);
+            }
+          );
+        });
+        this.__voidId = id;
+      }
+
+      then(onFulfilled, onRejected) {
+        const child = super.then(onFulfilled, onRejected);
+        if (__rt && child.__voidId) __rt.setPromiseParent(child.__voidId, this.__voidId);
+        return child;
+      }
+
+      catch(onRejected) {
+        const child = super.catch(onRejected);
+        if (__rt && child.__voidId) __rt.setPromiseParent(child.__voidId, this.__voidId);
+        return child;
+      }
+      
+      finally(onFinally) {
+        const child = super.finally(onFinally);
+        if (__rt && child.__voidId) __rt.setPromiseParent(child.__voidId, this.__voidId);
+        return child;
+      }
+    }
+
+    // Bind static methods so things like Promise.all still work properly
+    ProxyPromise.all = Promise.all.bind(Promise);
+    ProxyPromise.race = Promise.race.bind(Promise);
+    ProxyPromise.allSettled = Promise.allSettled.bind(Promise);
+    ProxyPromise.any = Promise.any.bind(Promise);
+    // Promise.resolve and Promise.reject are bound, but they return native Promises. 
+    // To be perfectly tracked, we'd wrap them, but this is enough for the exercise.
+
+    return { proxyFetch, ProxyPromise };
   }
 }

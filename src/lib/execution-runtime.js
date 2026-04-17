@@ -33,6 +33,8 @@ export class ExecutionRuntime {
     this.onCheckpoint = onCheckpoint;
     this.onConsole = onConsole;
     this.onFrameChange = onFrameChange;
+    this.onAsyncUpdate = null; // injected later or pass as 5th arg
+
 
     // Execution state
     this.mode = 'run';                // current step mode
@@ -57,6 +59,10 @@ export class ExecutionRuntime {
     this.profilerData = this._createEmptyProfilerData();
     this.flameNodeStack = [this.profilerData.flameChart];
     this._resumeTs = 0;
+
+    // Phase 6: Async / Network
+    this.networkRequests = [];
+    this.promises = [];
   }
 
   _createEmptyProfilerData() {
@@ -87,6 +93,9 @@ export class ExecutionRuntime {
     this.profilerData = this._createEmptyProfilerData();
     this.flameNodeStack = [this.profilerData.flameChart];
     this._resumeTs = 0;
+    this.networkRequests = [];
+    this.promises = [];
+    this._notifyAsyncUpdate();
   }
 
   /**
@@ -380,6 +389,55 @@ export class ExecutionRuntime {
       const d = new Date();
       const ts = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}.${String(d.getMilliseconds()).padStart(3,'0')}`;
       this.onConsole({ type, msg, ts });
+    }
+    }
+  }
+
+  // === Phase 6: Async/Network Tracking ===
+
+  trackFetch(id, url, method) {
+    this.networkRequests.push({ id, url, method, status: 'pending', start: performance.now(), duration: 0, response: null });
+    this._notifyAsyncUpdate();
+  }
+
+  updateFetch(id, status, response) {
+    const req = this.networkRequests.find(r => r.id === id);
+    if (req) {
+      req.status = status;
+      req.duration = performance.now() - req.start;
+      req.response = response;
+      this._notifyAsyncUpdate();
+    }
+  }
+
+  trackPromise(id, state) {
+    this.promises.push({ id, state, value: null, parentId: null, ts: performance.now() });
+    this._notifyAsyncUpdate();
+  }
+
+  updatePromise(id, state, value) {
+    const p = this.promises.find(p => p.id === id);
+    if (p) {
+      p.state = state;
+      if (value !== undefined) p.value = value;
+      this._notifyAsyncUpdate();
+    }
+  }
+
+  setPromiseParent(childId, parentId) {
+    const p = this.promises.find(p => p.id === childId);
+    if (p) {
+      p.parentId = parentId;
+      this._notifyAsyncUpdate();
+    }
+  }
+
+  _notifyAsyncUpdate() {
+    if (this.onAsyncUpdate) {
+      this.onAsyncUpdate({
+        promises: [...this.promises],
+        networkRequests: [...this.networkRequests]
+      });
     }
   }
 
