@@ -27,6 +27,8 @@ export function useDebugger() {
   const [astErrors, setAstErrors] = useState([]);
   const [fnRanges, setFnRanges] = useState([]);
   const [profilerData, setProfilerData] = useState(null);
+  const [networkRequests, setNetworkRequests] = useState([]);
+  const [promises, setPromises] = useState([]);
 
   const [files, setFiles] = useState([
     { name: 'sample.js', content: SAMPLE_CODE, modified: false }
@@ -99,6 +101,11 @@ export function useDebugger() {
 
       case 'profiler-update':
         setProfilerData(data.profilerData);
+        break;
+
+      case 'async-network-update':
+        setNetworkRequests(data.networkRequests || []);
+        setPromises(data.promises || []);
         break;
     }
   }, [addConsoleLine]);
@@ -211,6 +218,8 @@ export function useDebugger() {
     setCurrentStep(null);
     setConsoleLines([]);
     setProfilerData(null);
+    setNetworkRequests([]);
+    setPromises([]);
   }, []);
 
   // Console — now uses real scope from runtime
@@ -327,6 +336,7 @@ export function useDebugger() {
     scopeChain, callStack, consoleLines, timelineEvents,
     watchExprs, highlightParts, astErrors, fnRanges,
     files, activeFileIdx, profilerData,
+    networkRequests, promises,
 
     onCodeChange, toggleBreakpoint,
     setConditionalBreakpoint, setLogpoint, setHitCountBreakpoint,
