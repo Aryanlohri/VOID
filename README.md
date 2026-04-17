@@ -150,13 +150,18 @@ npm run dev
 - [x] **Phase 3 — True Step Engine**: AST-instrumented execution, async gates, step into/over/out, conditional breakpoints, logpoints, hit count breakpoints, exception breakpoints, continue to cursor
 - [x] **Phase 4 — Memory Inspector**: Heap snapshots, closure scope chains, prototype explorer
 - [x] **Phase 5 — Profiler**: CPU flame chart, hot-path highlighting, event loop latency
-- [ ] **Phase 6 — Async/Network**: Promise chain visualizer, fetch inspector
+- [x] **Phase 6 — Async/Network**: Promise chain visualizer, fetch inspector
 - [ ] **Phase 7 — Multi-Language**: Python via Pyodide, TypeScript support
 - [ ] **Phase 8 — Remote Debugging**: Chrome DevTools Protocol integration
 
 ---
 
 ## 📄 Changelog
+
+### v6.0.0 — Phase 6: Async/Network
+- **Fetch Inspector**: Network panel to visualize fetch requests, methods, durations, and response data
+- **Promise Visualizer**: Live tracking of Promise state transitions (pending/fulfilled/rejected)
+- **Async Interception**: Custom global proxy wrappers for fetch and promises to capture async lifecycle
 
 ### v5.0.0 — Phase 5: Profiler
 - **CPU Flame Chart**: Visualizing execution time across the call stack with reactive tree rendering.
