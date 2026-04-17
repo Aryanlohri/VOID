@@ -390,7 +390,6 @@ export class ExecutionRuntime {
       const ts = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}.${String(d.getMilliseconds()).padStart(3,'0')}`;
       this.onConsole({ type, msg, ts });
     }
-    }
   }
 
   // === Phase 6: Async/Network Tracking ===
