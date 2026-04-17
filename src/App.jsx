@@ -10,6 +10,8 @@ import WatchPanel from './components/WatchPanel.jsx';
 import ConsolePanel from './components/ConsolePanel.jsx';
 import BottomBar from './components/BottomBar.jsx';
 import ProfilerPanel from './components/ProfilerPanel.jsx';
+import NetworkPanel from './components/NetworkPanel.jsx';
+import AsyncPanel from './components/AsyncPanel.jsx';
 
 export default function App() {
   const [theme, setTheme] = useState('dark');
@@ -97,6 +99,8 @@ export default function App() {
               evaluateWatch={db.evaluateWatch}
             />
             <ProfilerPanel profilerData={db.profilerData} />
+            <NetworkPanel networkRequests={db.networkRequests} />
+            <AsyncPanel promises={db.promises} />
           </div>
 
           <ConsolePanel

@@ -564,6 +564,37 @@ html, body, #root {
 /* TL block set */
 .tl-block.bp-set { background: rgba(212,123,138,0.04); border-color: rgba(212,123,138,0.15); color: var(--red); }
 
+/* Phase 6: Sync/Network UI */
+.panel-network, .panel-async { flex: 1; min-height: 0; }
+.network-content, .async-content { padding: 4px; overflow-y: auto; flex: 1; font-size: 11px; }
+
+.network-item, .promise-item {
+  padding: 5px 8px; border-radius: var(--radius-sm); transition: background var(--transition);
+  margin-bottom: 2px;
+}
+.network-item:hover, .promise-item:hover { background: rgba(255,255,255,0.02); }
+
+.network-header { display: flex; align-items: center; gap: 8px; }
+.status-badge {
+  padding: 1px 6px; border-radius: var(--radius-pill); font-size: 9px; font-weight: bold;
+}
+.status-pending { background: rgba(126,184,218,0.2); color: var(--accent-cool); }
+/* Let status-200, 201 etc fallback to green */
+.status-badge[class*="status-2"] { background: rgba(126,201,164,0.2); color: var(--green); }
+.status-error, .status-badge[class*="status-4"], .status-badge[class*="status-5"] { background: rgba(212,123,138,0.2); color: var(--red); }
+
+.network-method { color: var(--accent-lilac); font-weight: bold; }
+.network-url { color: var(--text-bright); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.network-time { color: var(--text-muted); font-size: 10px; }
+.network-response { color: var(--text-dim); margin-top: 2px; font-size: 10px; border-left: 2px solid var(--border); padding-left: 6px; }
+
+.promise-id { color: var(--accent-cool); font-weight: bold; min-width: 80px; display: inline-block; }
+.promise-state.state-pending { color: var(--accent-warm); }
+.promise-state.state-fulfilled { color: var(--green); }
+.promise-state.state-rejected { color: var(--red); }
+.promise-value { color: var(--text-bright); margin-left: 6px; }
+.promise-parent { color: var(--text-muted); font-size: 10px; margin-left: 6px; }
+
 /* Responsive */
 @media (max-width: 1200px) { .main-grid { grid-template-columns: 1fr 220px 260px; } }
 @media (max-width: 900px) {
