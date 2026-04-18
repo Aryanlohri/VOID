@@ -13,6 +13,8 @@ import { ts, MAX_TIMELINE } from './helpers.js';
 import { CodeInstrumenter } from './code-instrumenter.js';
 import { ExecutionRuntime } from './execution-runtime.js';
 import { BreakpointManager } from './breakpoint-manager.js';
+import { compileTypeScript } from './ts-compiler.js';
+import { runPythonCode } from './py-instrumenter.js';
 
 export class TimelineLog {
   constructor() { this.events = []; }
@@ -150,11 +152,21 @@ export class DebugEngine {
   /**
    * Run the code with instrumented execution.
    */
-  async run(code, onConsoleMsg) {
+  async run(code, filename = 'untitled.js', onConsoleMsg) {
     if (this.state !== 'idle') return;
 
+    let executeCode = code;
+    if (filename.endsWith('.ts') || filename.endsWith('.tsx')) {
+      const tsResult = compileTypeScript(code);
+      if (tsResult.error) {
+        onConsoleMsg({ type: 'error', msg: tsResult.error, ts: ts() });
+        return;
+      }
+      executeCode = tsResult.code;
+    }
+
     // Instrument the code
-    const { code: instrumented, error } = this.instrumenter.instrument(code);
+    const { code: instrumented, error } = this.instrumenter.instrument(executeCode);
     if (error) {
       onConsoleMsg({ type: 'error', msg: `Instrumentation failed: ${error}`, ts: ts() });
       return;
@@ -172,6 +184,35 @@ export class DebugEngine {
 
     this.state = 'running';
     this.onEvent('state-change', { state: 'running' });
+
+    if (filename.endsWith('.py')) {
+      try {
+        await runPythonCode(code, this.runtime, onConsoleMsg);
+        if (this.state !== 'idle') {
+          this.state = 'idle';
+          if (this.runtime && this.runtime.profilerData) {
+            const prof = this.runtime.profilerData;
+            if (prof.flameChart) prof.flameChart.duration = performance.now() - prof.flameChart.start;
+            this.onEvent('profiler-update', { profilerData: prof });
+          }
+          this.onEvent('state-change', { state: 'idle' });
+          this.onEvent('execution-done', {});
+        }
+      } catch (e) {
+        if (e.message === '__VOID_EXECUTION_STOPPED__') {
+          this.state = 'idle';
+          this.onEvent('state-change', { state: 'idle' });
+          this.onEvent('stopped', {});
+        } else {
+          onConsoleMsg({ type: 'error', msg: `RuntimeError: ${e.message}`, ts: ts() });
+          this.timeline.record('err', `ERR: ${e.message.slice(0, 20)}`, {});
+          this.state = 'idle';
+          this.onEvent('state-change', { state: 'idle' });
+          this.onEvent('execution-done', { error: e.message });
+        }
+      }
+      return;
+    }
 
     // Build console capture
     const logCapture = (...args) => {
@@ -342,10 +383,20 @@ export class DebugEngine {
   /**
    * Start execution in step mode — run to the first checkpoint and pause.
    */
-  async runToFirstCheckpoint(code, onConsoleMsg) {
+  async runToFirstCheckpoint(code, filename = 'untitled.js', onConsoleMsg) {
     if (this.state !== 'idle') return;
 
-    const { code: instrumented, error } = this.instrumenter.instrument(code);
+    let executeCode = code;
+    if (filename.endsWith('.ts') || filename.endsWith('.tsx')) {
+      const tsResult = compileTypeScript(code);
+      if (tsResult.error) {
+        onConsoleMsg({ type: 'error', msg: tsResult.error, ts: ts() });
+        return;
+      }
+      executeCode = tsResult.code;
+    }
+
+    const { code: instrumented, error } = this.instrumenter.instrument(executeCode);
     if (error) {
       onConsoleMsg({ type: 'error', msg: `Instrumentation failed: ${error}`, ts: ts() });
       return;
@@ -363,6 +414,34 @@ export class DebugEngine {
 
     this.state = 'running';
     this.onEvent('state-change', { state: 'running' });
+
+    if (filename.endsWith('.py')) {
+      try {
+        await runPythonCode(code, this.runtime, onConsoleMsg);
+        if (this.state !== 'idle') {
+          this.state = 'idle';
+          if (this.runtime && this.runtime.profilerData) {
+            const prof = this.runtime.profilerData;
+            if (prof.flameChart) prof.flameChart.duration = performance.now() - prof.flameChart.start;
+            this.onEvent('profiler-update', { profilerData: prof });
+          }
+          this.onEvent('state-change', { state: 'idle' });
+          this.onEvent('execution-done', {});
+        }
+      } catch (e) {
+        if (e.message === '__VOID_EXECUTION_STOPPED__') {
+          this.state = 'idle';
+          this.onEvent('state-change', { state: 'idle' });
+          this.onEvent('stopped', {});
+        } else {
+          onConsoleMsg({ type: 'error', msg: `RuntimeError: ${e.message}`, ts: ts() });
+          this.state = 'idle';
+          this.onEvent('state-change', { state: 'idle' });
+          this.onEvent('execution-done', { error: e.message });
+        }
+      }
+      return;
+    }
 
     const logCapture = (...args) => {
       const msg = args.map(a => {

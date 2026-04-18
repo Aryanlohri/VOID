@@ -12,7 +12,8 @@
   "dependencies": {
     "acorn": "^8.16.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "sucrase": "^3.35.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

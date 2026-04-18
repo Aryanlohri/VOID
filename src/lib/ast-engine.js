@@ -198,7 +198,7 @@ export class ASTEngine {
     const patterns = [
       { re: /\/\/[^\n]*/g, type: 'comment' },
       { re: /\/\*[\s\S]*?\*\//g, type: 'comment' },
-      { re: /\b(function|return|var|let|const|if|else|for|while|do|switch|case|break|continue|new|throw|try|catch|finally|class|extends|import|export|default|typeof|void|delete|in|instanceof|of|async|await|yield)\b/g, type: 'keyword' },
+      { re: /\b(function|return|var|let|const|if|else|for|while|do|switch|case|break|continue|new|throw|try|catch|finally|class|extends|import|export|default|typeof|void|delete|in|instanceof|of|async|await|yield|def|pass|elif|except|True|False|None|and|or|not|print)\b/g, type: 'keyword' },
       { re: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g, type: 'string' },
       { re: /\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/g, type: 'number' },
       { re: /\b(true|false)\b/g, type: 'boolean' },

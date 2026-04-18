@@ -172,8 +172,9 @@ export function useDebugger() {
       return;
     }
     addConsoleLine({ type: 'info', msg: `▶ Execution started at ${ts()}`, ts: ts() });
-    engine.run(code, (msg) => addConsoleLine(msg));
-  }, [code, addConsoleLine]);
+    const name = files[activeFileIdx]?.name || 'untitled.js';
+    engine.run(code, name, (msg) => addConsoleLine(msg));
+  }, [code, addConsoleLine, files, activeFileIdx]);
 
   const doStep = useCallback((type) => {
     const engine = engineRef.current;
@@ -181,8 +182,9 @@ export function useDebugger() {
 
     if (engine.state === 'idle') {
       if (!code.trim()) return;
+      const name = files[activeFileIdx]?.name || 'untitled.js';
       addConsoleLine({ type: 'info', msg: '⏭ Step mode started', ts: ts() });
-      engine.runToFirstCheckpoint(code, (msg) => addConsoleLine(msg));
+      engine.runToFirstCheckpoint(code, name, (msg) => addConsoleLine(msg));
       return;
     }
 
@@ -191,7 +193,7 @@ export function useDebugger() {
       else if (type === 'into') engine.stepInto();
       else if (type === 'out') engine.stepOut();
     }
-  }, [code, addConsoleLine]);
+  }, [code, addConsoleLine, files, activeFileIdx]);
 
   const doStop = useCallback(() => {
     if (engineRef.current) {
@@ -283,7 +285,7 @@ export function useDebugger() {
     try {
       if (window.showOpenFilePicker) {
         const [handle] = await window.showOpenFilePicker({
-          types: [{ description: 'JavaScript', accept: { 'text/javascript': ['.js', '.mjs', '.jsx'] } }]
+          types: [{ description: 'Source Code', accept: { 'text/plain': ['.js', '.mjs', '.jsx', '.ts', '.tsx', '.py'] } }]
         });
         const file = await handle.getFile();
         const content = await file.text();
@@ -305,7 +307,7 @@ export function useDebugger() {
     try {
       if (window.showSaveFilePicker) {
         const handle = await window.showSaveFilePicker({
-          suggestedName: name, types: [{ description: 'JavaScript', accept: { 'text/javascript': ['.js'] } }]
+          suggestedName: name, types: [{ description: 'Source Code', accept: { 'text/plain': ['.js', '.mjs', '.jsx', '.ts', '.tsx', '.py'] } }]
         });
         const writable = await handle.createWritable();
         await writable.write(code); await writable.close();
