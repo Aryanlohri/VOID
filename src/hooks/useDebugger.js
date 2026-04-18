@@ -5,6 +5,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ASTEngine } from '../lib/ast-engine.js';
 import { DebugEngine, TimelineLog, ConsoleEngine } from '../lib/debug-engine.js';
+import { CDPEngine } from '../lib/cdp-engine.js';
 import { ts, formatValue, SAMPLE_CODE } from '../lib/helpers.js';
 
 export function useDebugger() {
@@ -12,8 +13,10 @@ export function useDebugger() {
   const timelineRef = useRef(new TimelineLog());
   const consoleEngRef = useRef(new ConsoleEngine());
   const engineRef = useRef(null);
+  const cdpEngineRef = useRef(null);
 
   const [code, setCode] = useState(SAMPLE_CODE);
+  const [cdpMode, setCdpMode] = useState(false);
   const [engineState, setEngineState] = useState('idle');
   const [breakpoints, setBreakpoints] = useState(new Set());
   const [breakpointData, setBreakpointData] = useState([]);
@@ -113,11 +116,14 @@ export function useDebugger() {
   // Initialize engine
   useEffect(() => {
     engineRef.current = new DebugEngine(timelineRef.current, handleEngineEvent);
+    cdpEngineRef.current = new CDPEngine(timelineRef.current, handleEngineEvent);
     addConsoleLine({ type: 'info', msg: 'VOID Debugger v3.0 — True Step Engine initialized.', ts: ts() });
     addConsoleLine({ type: 'log', msg: 'Set breakpoints → click line numbers. Right-click → conditional BP, logpoint.', ts: ts() });
     addConsoleLine({ type: 'log', msg: 'Shortcuts: F5=Run  F10=StepOver  F11=StepInto  Shift+F11=StepOut  Shift+F5=Stop', ts: ts() });
     doHighlight(SAMPLE_CODE);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const getActiveEngine = useCallback(() => cdpMode ? cdpEngineRef.current : engineRef.current, [cdpMode]);
 
   const doHighlight = useCallback((src) => {
     const result = astRef.current.parse(src);
@@ -146,41 +152,52 @@ export function useDebugger() {
 
   // Breakpoint management — rich types
   const toggleBreakpoint = useCallback((line) => {
-    if (engineRef.current) engineRef.current.toggleBreakpoint(line);
-  }, []);
+    const engine = getActiveEngine();
+    if (engine) engine.toggleBreakpoint(line, files[activeFileIdx]?.name);
+  }, [getActiveEngine, files, activeFileIdx]);
 
   const setConditionalBreakpoint = useCallback((line, condition) => {
-    if (engineRef.current) engineRef.current.setConditionalBreakpoint(line, condition);
-  }, []);
+    const engine = getActiveEngine();
+    if (engine) engine.setConditionalBreakpoint(line, condition);
+  }, [getActiveEngine]);
 
   const setLogpoint = useCallback((line, logMessage) => {
-    if (engineRef.current) engineRef.current.setLogpoint(line, logMessage);
-  }, []);
+    const engine = getActiveEngine();
+    if (engine) engine.setLogpoint(line, logMessage);
+  }, [getActiveEngine]);
 
   const setHitCountBreakpoint = useCallback((line, hitTarget) => {
-    if (engineRef.current) engineRef.current.setHitCountBreakpoint(line, parseInt(hitTarget));
-  }, []);
+    const engine = getActiveEngine();
+    if (engine) engine.setHitCountBreakpoint(line, parseInt(hitTarget));
+  }, [getActiveEngine]);
 
   // Execution
   const doRun = useCallback(() => {
-    const engine = engineRef.current;
+    const engine = getActiveEngine();
     if (!engine) return;
     if (engine.state === 'paused') { engine.resume(); return; }
-    if (engine.state !== 'idle') return;
+    if (engine.state !== 'idle' && !cdpMode) return;
     if (!code.trim()) {
       addConsoleLine({ type: 'warn', msg: 'No code to run.', ts: ts() });
       return;
     }
-    addConsoleLine({ type: 'info', msg: `▶ Execution started at ${ts()}`, ts: ts() });
-    const name = files[activeFileIdx]?.name || 'untitled.js';
-    engine.run(code, name, (msg) => addConsoleLine(msg));
-  }, [code, addConsoleLine, files, activeFileIdx]);
+    
+    if (cdpMode) {
+      addConsoleLine({ type: 'info', msg: `▶ Evaluating remotely at ${ts()}`, ts: ts() });
+      const name = files[activeFileIdx]?.name || 'untitled.js';
+      engine.run(code, name, (msg) => addConsoleLine(msg));
+    } else {
+      addConsoleLine({ type: 'info', msg: `▶ Execution started at ${ts()}`, ts: ts() });
+      const name = files[activeFileIdx]?.name || 'untitled.js';
+      engine.run(code, name, (msg) => addConsoleLine(msg));
+    }
+  }, [code, addConsoleLine, files, activeFileIdx, getActiveEngine, cdpMode]);
 
   const doStep = useCallback((type) => {
-    const engine = engineRef.current;
+    const engine = getActiveEngine();
     if (!engine) return;
 
-    if (engine.state === 'idle') {
+    if (engine.state === 'idle' && !cdpMode) {
       if (!code.trim()) return;
       const name = files[activeFileIdx]?.name || 'untitled.js';
       addConsoleLine({ type: 'info', msg: '⏭ Step mode started', ts: ts() });
@@ -193,17 +210,18 @@ export function useDebugger() {
       else if (type === 'into') engine.stepInto();
       else if (type === 'out') engine.stepOut();
     }
-  }, [code, addConsoleLine, files, activeFileIdx]);
+  }, [code, addConsoleLine, files, activeFileIdx, cdpMode, getActiveEngine]);
 
   const doStop = useCallback(() => {
-    if (engineRef.current) {
-      engineRef.current.stop();
-      addConsoleLine({ type: 'warn', msg: `■ Execution stopped at ${ts()}`, ts: ts() });
+    const engine = getActiveEngine();
+    if (engine) {
+      engine.stop();
+      if (!cdpMode) addConsoleLine({ type: 'warn', msg: `■ Execution stopped at ${ts()}`, ts: ts() });
     }
-  }, [addConsoleLine]);
+  }, [addConsoleLine, getActiveEngine, cdpMode]);
 
   const continueToCursor = useCallback((line) => {
-    const engine = engineRef.current;
+    const engine = getActiveEngine();
     if (!engine) return;
     if (engine.state === 'paused') {
       addConsoleLine({ type: 'info', msg: `→ Continue to line ${line}`, ts: ts() });
@@ -212,7 +230,10 @@ export function useDebugger() {
   }, [addConsoleLine]);
 
   const doClear = useCallback(() => {
-    if (engineRef.current) engineRef.current.stop();
+    const engine = getActiveEngine();
+    if (engine) engine.stop();
+    if (cdpMode) setCdpMode(false);
+    
     timelineRef.current.clear();
     setTimelineEvents([]);
     setScopeChain([]);
@@ -227,7 +248,18 @@ export function useDebugger() {
   // Console — now uses real scope from runtime
   const evaluateExpr = useCallback((expr) => {
     addConsoleLine({ type: 'exec', msg: `>>> ${expr}`, ts: ts() });
-    const engine = engineRef.current;
+    
+    // Simplistic handling for CDP -- it does not yet evaluate via console easily without building custom protocol support for parsing inputs
+    if (cdpMode) {
+      cdpEngineRef.current.send('Runtime.evaluate', { expression: expr, includeCommandLineAPI: true })
+        .then(res => {
+           if (res.exceptionDetails) addConsoleLine({ type: 'error', msg: `✗ ${res.exceptionDetails.exception?.description || 'Error'}`, ts: ts() });
+           else addConsoleLine({ type: 'result', msg: `← ${res.result.description || res.result.value}`, ts: ts() });
+        });
+      return;
+    }
+    
+    const engine = getActiveEngine();
     const ctx = engine ? engine.getCurrentScope() : {};
     const result = consoleEngRef.current.evaluate(expr, ctx);
     if (result.ok) {
@@ -250,10 +282,11 @@ export function useDebugger() {
   }, []);
 
   const evaluateWatch = useCallback((expr) => {
-    const engine = engineRef.current;
+    if (cdpMode) return { ok: false, error: 'CDP watches unsupported yet' };
+    const engine = getActiveEngine();
     const ctx = engine ? engine.getCurrentScope() : {};
     return consoleEngRef.current.evaluate(expr, ctx);
-  }, []);
+  }, [cdpMode, getActiveEngine]);
 
   // File management (unchanged)
   const addFile = useCallback((name, content = '') => {
@@ -333,8 +366,27 @@ export function useDebugger() {
     }
   }, [addConsoleLine]);
 
+  // Connect CDP logic
+  const connectCdp = useCallback(async () => {
+    if (cdpMode) {
+      // Disconnect
+      cdpEngineRef.current.stop();
+      setCdpMode(false);
+      
+      // Attempt generic UI reset gracefully so native UI controls restore functionality
+      setEngineState('idle'); 
+    } else {
+      // Connect
+      doClear();
+      const success = await cdpEngineRef.current.connect((msg) => addConsoleLine(msg));
+      if (success) {
+        setCdpMode(true);
+      }
+    }
+  }, [cdpMode, addConsoleLine, doClear]);
+
   return {
-    code, engineState, breakpoints, breakpointData, currentStep,
+    code, engineState, cdpMode, breakpoints, breakpointData, currentStep,
     scopeChain, callStack, consoleLines, timelineEvents,
     watchExprs, highlightParts, astErrors, fnRanges,
     files, activeFileIdx, profilerData,
@@ -342,7 +394,7 @@ export function useDebugger() {
 
     onCodeChange, toggleBreakpoint,
     setConditionalBreakpoint, setLogpoint, setHitCountBreakpoint,
-    doRun, doStep, doStop, doClear, continueToCursor,
+    doRun, doStep, doStop, doClear, continueToCursor, connectCdp,
     evaluateExpr, consoleHistoryUp, consoleHistoryDown,
     addWatch, removeWatch, evaluateWatch,
     addFile, switchFile, closeFile, openFile, saveFile,

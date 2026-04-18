@@ -50,6 +50,8 @@ export default function App() {
 
         <Toolbar
           engineState={db.engineState}
+          cdpMode={db.cdpMode}
+          onConnectCdp={db.connectCdp}
           onRun={db.doRun}
           onStepOver={() => db.doStep('over')}
           onStepInto={() => db.doStep('into')}

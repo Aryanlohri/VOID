@@ -1,5 +1,5 @@
 export default function Toolbar({
-  engineState, onRun, onStepOver, onStepInto, onStepOut, onStop, onClear,
+  engineState, cdpMode, onConnectCdp, onRun, onStepOver, onStepInto, onStepOut, onStop, onClear,
   onOpenFile, onSaveFile, onToggleTheme
 }) {
   const isPaused = engineState === 'paused';
@@ -24,13 +24,20 @@ export default function Toolbar({
         <svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 12V4M4 6l3-3 3 3" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
         OUT
       </button>
-      <button className="btn btn-stop" id="btnStop" title="Stop (Shift+F5)" onClick={onStop} disabled={isIdle}>
+      <button className="btn btn-stop" id="btnStop" title="Stop (Shift+F5)" onClick={onStop} disabled={isIdle && !cdpMode}>
         <svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" fill="currentColor"/></svg>
         STOP
       </button>
       <button className="btn btn-clear" id="btnClear" title="Clear All" onClick={onClear}>
         <svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 3h10M5 3V2h4v1M4 3l1 9h4l1-9" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
         CLEAR
+      </button>
+
+      <span className="toolbar-sep" />
+
+      <button className={`btn btn-connect ${cdpMode ? 'active' : ''}`} id="btnConnectCdp" title="Connect to Remote Target (--inspect)" onClick={onConnectCdp}>
+        <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="4" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2" stroke="currentColor" strokeWidth="1.5"/></svg>
+        {cdpMode ? 'DISCONNECT' : 'CONNECT CDP'}
       </button>
 
       <span className="toolbar-sep" />
