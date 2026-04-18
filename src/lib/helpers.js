@@ -46,42 +46,69 @@ export function extractFnName(line) {
 export const STEP_DELAY_MS = 400;
 export const MAX_TIMELINE = 80;
 
-export const SAMPLE_CODE = `// VOID Debugger v2.0 — Sample Program
-// Set breakpoints by clicking line numbers.
-// Hover over variables during execution to inspect values.
-// Then hit RUN or STEP to begin.
+export const SAMPLE_CODE = `// VOID Debugger v7.0 — Ultimate Test Program
+// 1. Prototype Chains & Closures (Memory Inspector)
+// 2. Heavy Loops (Profiler)
+// 3. fetch & Promises (Network & Async Panels)
+// Hit "Run" or F5 to begin!
 
-function fibonacci(n) {
-  if (n <= 1) return n;
-  return fibonacci(n - 1) + fibonacci(n - 2);
-}
-
-function greet(name, times) {
-  const messages = [];
-  for (let i = 0; i < times; i++) {
-    const msg = "Hello, " + name + "! (" + (i + 1) + ")";
-    messages.push(msg);
-    console.log(msg);
+class DataProcessor {
+  constructor(multiplier) {
+    this.multiplier = multiplier;
   }
-  return messages;
-}
-
-function compute() {
-  const results = {};
-  const names = ["Alice", "Bob", "Void"];
-
-  for (const name of names) {
-    const count = name.length;
-    results[name] = fibonacci(count);
-    console.log(name + " => fib(" + count + ") = " + results[name]);
+  process(val) {
+    return val * this.multiplier;
   }
-
-  const greetings = greet("Debugger", 3);
-  console.log("Total greetings:", greetings.length);
-
-  return results;
 }
 
-const output = compute();
-console.log("Final output:", JSON.stringify(output));
+// This triggers the Network & Async panels
+async function fetchStats() {
+  console.log("Fetching simulated data...");
+  const res = await fetch("https://jsonplaceholder.typicode.com/todos/1");
+  const data = await res.json();
+  return data;
+}
+
+// This loop will trigger Profiler hot-paths
+function heavyComputation(iters) {
+  let sum = 0;
+  for (let i = 0; i < iters; i++) {
+    sum += Math.sqrt(i) * 0.001;
+  }
+  return sum;
+}
+
+async function runDemo() {
+  try {
+    // 1. Closures & Prototypes in Memory Inspector
+    const processor = new DataProcessor(42);
+    let capturedVar = "I am tracked dynamically!";
+    
+    const leakScope = () => {
+      console.log(capturedVar, processor.process(2));
+    };
+    leakScope();
+
+    // 2. Profiling execution intensity
+    const val = heavyComputation(300);
+    console.log("Computation result:", val);
+
+    // 3. Network Fetch & Promise Tracking
+    const promise1 = fetchStats();
+    const promise2 = new Promise(resolve => resolve("Async resolve tick"));
+    
+    const [stats, msg] = await Promise.all([promise1, promise2]);
+    console.log("Network JSON:", stats.title);
+    console.log("Message:", msg);
+
+    // 4. Exception Handling
+    throw new Error("Testing runtime exception handling!");
+
+  } catch (err) {
+    console.error("Caught error:", err.message);
+  }
+}
+
+// Kickoff Execution
+runDemo();
 `;
