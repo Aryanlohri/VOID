@@ -151,12 +151,17 @@ npm run dev
 - [x] **Phase 4 — Memory Inspector**: Heap snapshots, closure scope chains, prototype explorer
 - [x] **Phase 5 — Profiler**: CPU flame chart, hot-path highlighting, event loop latency
 - [x] **Phase 6 — Async/Network**: Promise chain visualizer, fetch inspector
-- [ ] **Phase 7 — Multi-Language**: Python via Pyodide, TypeScript support
+- [x] **Phase 7 — Multi-Language**: Python via Pyodide, TypeScript support
 - [ ] **Phase 8 — Remote Debugging**: Chrome DevTools Protocol integration
 
 ---
 
 ## 📄 Changelog
+
+### v7.0.0 — Phase 7: Multi-Language
+- **TypeScript Support**: Native execution of `.ts` files via high-speed zero-artifact Sucrase transpilation prior to AST instrumentation
+- **Python Support**: Pyodide webassembly integration to execute `.py` scripts via an injected `ast` traversal mechanism replacing `sys.settrace`
+- **Dynamic File Parsing**: Automatic file extension detection seamlessly mapping execution to different compiler runners and highlighting languages appropriately.
 
 ### v6.0.0 — Phase 6: Async/Network
 - **Fetch Inspector**: Network panel to visualize fetch requests, methods, durations, and response data
