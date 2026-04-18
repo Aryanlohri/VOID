@@ -33,8 +33,8 @@ export default function ConsolePanel({
   return (
     <div className="panel panel-console">
       <div className="panel-title">
-        <span className="panel-icon">&#9658;</span> CONSOLE
-        <button className="panel-btn" onClick={onClear}>CLR</button>
+        <span className="panel-icon"></span> console
+        <button className="panel-btn" onClick={onClear}>clr</button>
       </div>
       <div className="console-output" id="consoleOutput" ref={outputRef}>
         {consoleLines.map((line, i) => (

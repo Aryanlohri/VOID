@@ -33,7 +33,7 @@ export default function ProfilerPanel({ profilerData }) {
   return (
     <div className="panel panel-profiler">
       <div className="panel-title">
-        <span className="panel-icon">&#9646;</span> PROFILER
+        <span className="panel-icon"></span> profiler
         {profilerData && (
           <span className="panel-badge" title="Average Event Loop Latency between checkpoints">
             LATENCY: {profilerData.avgLatency ? profilerData.avgLatency.toFixed(2) : '0.00'}ms
@@ -42,7 +42,7 @@ export default function ProfilerPanel({ profilerData }) {
       </div>
       <div className="profiler-content">
         {!hasData ? (
-          <div className="empty-state">No profile data. Run code to generate flame chart.</div>
+          <div className="empty-state">—</div>
         ) : (
           <div className="flame-chart-container">
             <FlameNode node={rootNode} totalDuration={rootNode.duration} level={0} />

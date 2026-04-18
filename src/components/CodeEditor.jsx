@@ -125,7 +125,7 @@ export default function CodeEditor({
   return (
     <div className="panel panel-editor" id="panelEditor">
       <div className="panel-title">
-        <span className="panel-icon">&#9654;</span> SOURCE
+        <span className="panel-icon"></span> source
         <span className="panel-badge" id="bpCount">{breakpoints.size} BP</span>
         {engineState === 'paused' && currentStep && (
           <span className="panel-badge paused-badge">PAUSED L{currentStep.lineNum}</span>

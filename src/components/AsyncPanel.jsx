@@ -2,11 +2,11 @@ export default function AsyncPanel({ promises = [] }) {
   return (
     <div className="panel panel-async">
       <div className="panel-title">
-        <span className="panel-icon">&#9889;</span> PROMISES
+        <span className="panel-icon icon-promises"></span> promises
       </div>
       <div className="async-content panel-scroll-content">
         {promises.length === 0 ? (
-          <div className="empty-state">No active promises.</div>
+          <div className="empty-state">—</div>
         ) : (
           promises.map(p => (
             <div key={p.id} className="promise-item">

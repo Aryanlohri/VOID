@@ -16,23 +16,23 @@ export default function Header({ engineState }) {
     : 'ready';
 
   const statusLabel = {
-    idle: 'READY', running: 'RUNNING', paused: 'PAUSED', stepping: 'STEPPING'
-  }[engineState] || 'READY';
+    idle: 'ready', running: 'running', paused: 'paused', stepping: 'stepping'
+  }[engineState] || 'ready';
 
   const mem = typeof performance !== 'undefined' && performance.memory
-    ? `MEM: ${(performance.memory.usedJSHeapSize / 1048576).toFixed(1)}MB`
-    : 'MEM: —';
+    ? `mem ${(performance.memory.usedJSHeapSize / 1048576).toFixed(1)}mb`
+    : 'mem —';
 
   return (
     <header className="header" id="headerBar">
       <div className="logo">
         <span className="logo-bracket">[</span>
         <span className="logo-text">VOID</span>
-        <span className="logo-sub">DEBUGGER v2.0.0</span>
+        <span className="logo-sub">debugger v2.0.0</span>
         <span className="logo-bracket">]</span>
       </div>
       <div className="header-status">
-        <span className={`status-dot ${statusClass}`} />
+        <span className={`status-dot ${statusClass}`}>●</span>
         <span>{statusLabel}</span>
         <span className="sep">|</span>
         <span>{mem}</span>

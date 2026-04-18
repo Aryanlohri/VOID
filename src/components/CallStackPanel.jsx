@@ -3,10 +3,10 @@ export default function CallStackPanel({ callStack }) {
 
   return (
     <div className="panel panel-callstack">
-      <div className="panel-title"><span className="panel-icon">&#9650;</span> CALL STACK</div>
+      <div className="panel-title"><span className="panel-icon"></span> call stack</div>
       <div className="callstack-content" id="callStackContent">
         {frames.length === 0 ? (
-          <div className="empty-state">Stack is empty.</div>
+          <div className="empty-state">—</div>
         ) : (
           frames.map((frame, i) => (
             <div className={`stack-frame ${i === 0 ? 'active' : ''}`} key={i}>

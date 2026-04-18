@@ -16,12 +16,12 @@ export default function WatchPanel({ watchExprs, onAdd, onRemove, evaluateWatch 
   return (
     <div className="panel panel-watch">
       <div className="panel-title">
-        <span className="panel-icon">&#9670;</span> WATCH
-        <button className="panel-btn" onClick={() => setShowInput(!showInput)}>+ ADD</button>
+        <span className="panel-icon"></span> watch
+        <button className="panel-btn" onClick={() => setShowInput(!showInput)}>+ add</button>
       </div>
       <div className="watch-content" id="watchContent">
         {watchExprs.length === 0 ? (
-          <div className="empty-state">No watch expressions.</div>
+          <div className="empty-state">—</div>
         ) : (
           watchExprs.map((expr, idx) => {
             const res = evaluateWatch(expr);

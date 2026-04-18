@@ -9,10 +9,10 @@ export default function BottomBar({ breakpoints, breakpointData, timelineEvents,
   return (
     <div className="bottom-bar">
       <div className="panel panel-breakpoints">
-        <div className="panel-title"><span className="panel-icon">&#9679;</span> BREAKPOINTS</div>
+        <div className="panel-title"><span className="panel-icon"></span> breakpoints</div>
         <div className="bp-list" id="bpList">
           {bps.length === 0 ? (
-            <span className="empty-state">None set. Click a line number or right-click for options.</span>
+            <span className="empty-state">no breakpoints set.</span>
           ) : (
             bps.map(bp => (
               <div
@@ -47,17 +47,23 @@ export default function BottomBar({ breakpoints, breakpointData, timelineEvents,
         </div>
       </div>
       <div className="panel panel-timeline">
-        <div className="panel-title"><span className="panel-icon">&#9632;</span> EXECUTION TIMELINE</div>
+        <div className="panel-title"><span className="panel-icon"></span> execution timeline</div>
         <div className="timeline" id="timeline">
-          {timelineEvents.map((ev, i) => (
-            <div
-              className={`tl-block ${ev.type}`}
-              key={i}
-              title={`${ev.type} @ ${new Date(ev.time).toISOString().slice(11, 23)}`}
-            >
-              {ev.label}
-            </div>
-          ))}
+          {timelineEvents.length === 0 ? (
+            <div className="tl-placeholder"></div>
+          ) : (
+            timelineEvents.map((ev, i) => (
+              <div
+                className={`tl-entry`}
+                key={i}
+                title={`${ev.type} @ ${new Date(ev.time).toISOString().slice(11, 23)}`}
+              >
+                <span className="tl-ts">{new Date(ev.time).toISOString().slice(11, 23)}</span>
+                <span className="tl-bar"></span>
+                <span className="tl-label">{ev.label}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

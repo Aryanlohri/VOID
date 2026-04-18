@@ -2,11 +2,11 @@ export default function NetworkPanel({ networkRequests = [] }) {
   return (
     <div className="panel panel-network">
       <div className="panel-title">
-        <span className="panel-icon">&#127760;</span> NETWORK
+        <span className="panel-icon icon-network"></span> network
       </div>
       <div className="network-content panel-scroll-content">
         {networkRequests.length === 0 ? (
-          <div className="empty-state">No network requests.</div>
+          <div className="empty-state">—</div>
         ) : (
           networkRequests.map(req => (
             <div key={req.id} className="network-item">
