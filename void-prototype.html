@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VOID Debugger v2.0.0</title>
+  <style>
+    /* DESIGN SYSTEM */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f0f0f;
+      color: rgba(255,255,255,0.55);
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 4px; background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+    /* LAYOUT MACRO */
+    .toolbar {
+      height: 48px; border-bottom: 0.5px solid rgba(255,255,255,0.05); display: flex;
+      align-items: center; padding: 0 16px; background: #141414; gap: 12px; flex-shrink: 0;
+    }
+    .main-area { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+    .source-panel { flex: 1; background: #0f0f0f; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    .source-header { padding: 8px 16px; border-bottom: 0.5px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); font-size: 10px; letter-spacing: 0.12em; text-transform: lowercase; }
+    .source-code-wrap { flex: 1; overflow: auto; padding: 12px 0; position: relative; }
+    
+    .right-sidebar { width: 360px; background: #0f0f0f; border-left: 0.5px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; padding: 12px; gap: 12px; overflow-y: auto; }
+    
+    .bottom-bar { height: 180px; border-top: 0.5px solid rgba(255,255,255,0.05); background: #141414; display: flex; flex-direction: column; flex-shrink: 0; }
+    .console-header { padding: 8px 16px; border-bottom: 0.5px solid rgba(255,255,255,0.05); font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 0.12em; text-transform: lowercase; }
+    .console-lines { flex: 1; padding: 8px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+    .console-line { font-size: 11px; white-space: pre-wrap; word-wrap: break-word; }
+
+    /* UI COMPONENTS */
+    .panel { background: #141414; border: 0.5px solid rgba(255,255,255,0.07); border-radius: 8px; display: flex; flex-direction: column; flex-shrink: 0; }
+    .panel-header { padding: 10px 12px; border-bottom: 0.5px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .panel-header-title { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.3); font-size: 10px; letter-spacing: 0.12em; text-transform: lowercase; }
+    .panel-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .panel-content { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .row-divider { border-top: 0.5px solid rgba(255,255,255,0.05); margin: 8px -12px; }
+
+    button { background: transparent; border: 0.5px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.55); font-family: 'Courier New', monospace; font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none; }
+    button:hover:not(:disabled) { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.8); }
+    button.active { border-color: rgba(0,200,130,0.4); color: #00c882; background: rgba(0,200,130,0.08); }
+    button:disabled { opacity: 0.3; cursor: not-allowed; }
+    
+    input, textarea { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); font-family: 'Courier New', monospace; font-size: 11px; padding: 5px 8px; border-radius: 4px; outline: none; transition: all 0.2s; }
+    input:focus, textarea:focus { border-color: rgba(255,255,255,0.3); }
+    input.error, textarea.error { border-color: rgba(232,80,80,0.5); }
+
+    .dim-text { color: rgba(255,255,255,0.2); font-size: 10px; }
+    .empty-state { color: rgba(255,255,255,0.15); font-size: 13px; text-align: center; display: block; padding: 16px 0; }
+
+    /* EXISTING PANELS MOCKS */
+    .var-row { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; font-size: 11px; }
+
+    /* =========================================
+       GHOST RUNS
+       ========================================= */
+    #ghostRunsPanelContent { display: flex; flex-direction: column; gap: 8px; }
+    .ghost-run-list { display: flex; flex-direction: column; gap: 8px; }
+    
+    .ghost-row { display: flex; align-items: flex-start; gap: 8px; position: relative; }
+    .ghost-row-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 8px; flex-shrink: 0; cursor: pointer; transition: opacity 0.2s; }
+    .ghost-row-dot.inactive { opacity: 0.2; }
+    .ghost-row-label { flex: 0 0 70px; background: transparent; border: 1px solid transparent; padding: 4px; color: rgba(255,255,255,0.6); max-width: 80px; }
+    .ghost-row-label:focus { border-color: rgba(255,255,255,0.3); }
+    .ghost-json-wrap { flex: 1; display: flex; flex-direction: column; position: relative; }
+    .ghost-json-input { height: 26px; resize: none; overflow: hidden; white-space: nowrap; line-height: 14px; }
+    .ghost-json-input:focus { height: 50px; white-space: pre-wrap; overflow: auto; position: absolute; top:0; left:0; width:100%; z-index: 10; background: #1e1e1e; }
+    
+    .ghost-remove-btn { opacity: 0; font-size: 11px; border: none; padding: 0 4px; color: rgba(255,255,255,0.3); background: none; margin-top: 4px; }
+    .ghost-row:hover .ghost-remove-btn { opacity: 1; }
+    .ghost-remove-btn:hover { color: #e85050; }
+    .ghost-error-msg { color: #e85050; font-size: 9px; display: none; margin-top: 2px; }
+
+    .timeline-area { display: flex; flex-direction: column; position: relative; }
+    .timeline-header { display: flex; padding-bottom: 6px; border-bottom: 0.5px solid rgba(255,255,255,0.05); margin-bottom: 8px; }
+    .tl-fn { width: 70px; }
+    .tl-bar { flex: 1; }
+    .tl-res { width: 60px; text-align: right; }
+    
+    .track-row { display: flex; align-items: center; height: 24px; font-size: 11px; margin-bottom: 4px; position: relative;}
+    .track-fn-col { width: 70px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255,255,255,0.4); }
+    .track-bar-col { flex: 1; position: relative; height: 100%; display: flex; align-items: center; margin: 0 8px; }
+    .track-bg { position: absolute; left: 0; height: 6px; border-radius: 3px; max-width: 100%; }
+    .track-segment { position: absolute; height: 6px; border-radius: 3px; cursor: pointer; transform-origin: left; transition: width 0.6s ease; }
+    .track-res-col { width: 60px; text-align: right; font-family: monospace; font-size: 11px; }
+
+    /* Tooltip */
+    #ghostTooltip { position: absolute; background: #1e1e1e; border: 0.5px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px 10px; font-size: 11px; color: rgba(255,255,255,0.7); pointer-events: none; white-space: pre; display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+
+    /* Divergence */
+    .divergence-line { position: absolute; top: 0; bottom: 0; width: 1px; border-left: 1px dashed rgba(255,255,255,0.15); z-index: 5; display: none; }
+    .divergence-label { position: absolute; font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 0.08em; transform: translateX(-50%); white-space: nowrap; display: none; top: -16px;}
+
+    /* =========================================
+       WHAT-IF SANDBOX
+       ========================================= */
+    .whatif-section { padding-top: 8px; transition: opacity 0.3s; }
+    .whatif-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .whatif-title { color: rgba(255,255,255,0.3); font-size: 10px; letter-spacing: 0.12em; text-transform: lowercase; display: flex; align-items: center; gap: 8px; }
+    .whatif-content { display: none; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .whatif-content.expanded { display: flex; }
+
+    .wi-row { display: flex; justify-content: space-between; align-items: center; }
+    .wi-label { color: rgba(255,255,255,0.4); font-size: 11px; }
+    .wi-input { width: 90px; }
+    .wi-input.overridden { border-color: rgba(167,139,250,0.5); }
+
+    .wi-buttons { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+    .btn-clear { border: none; padding: 0; color: rgba(255,255,255,0.25); font-size: 10px; text-decoration: none; min-width: 0; }
+    .btn-clear:hover { border: none; color: rgba(255,255,255,0.5); background: transparent; }
+
+    .wi-result-box { background: rgba(167,139,250,0.05); border: 0.5px solid rgba(167,139,250,0.2); border-radius: 6px; padding: 10px 12px; margin-top: 4px; display: none; }
+    .wi-result-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .wi-res-title { color: #a78bfa; font-size: 10px; letter-spacing: 0.1em; }
+    .wi-res-dim { color: rgba(255,255,255,0.2); font-size: 10px; }
+    .wi-res-row { font-size: 11px; margin-top: 6px; display: flex; align-items: center;}
+    .wi-res-name { color: rgba(255,255,255,0.4); }
+    .wi-res-arrow { color: rgba(255,255,255,0.15); margin: 0 6px; }
+    .wi-res-val { color: #a78bfa; }
+    
+    .wi-skipped-lines { margin-top: 10px; border-top: 0.5px solid rgba(255,255,255,0.05); padding-top: 8px; display: none; }
+    .wi-badge { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 3px; padding: 2px 6px; font-size: 10px; color: rgba(255,255,255,0.25); margin-right: 4px; display: inline-block; }
+
+    /* =========================================
+       SOURCE PANEL & OVERLAYS
+       ========================================= */
+    .code-line { display: flex; position: relative; padding: 2px 0; font-size: 13px; line-height: 22px; cursor: text; border-left: 2px solid transparent;}
+    .code-gutter { width: 50px; flex-shrink: 0; color: rgba(255,255,255,0.2); text-align: right; padding-right: 12px; position: relative; user-select: none; border-right: 0.5px solid rgba(255,255,255,0.05); cursor: pointer;}
+    .code-gutter:hover { color: rgba(255,255,255,0.4); }
+    .code-content { flex: 1; padding-left: 12px; position: relative; white-space: pre; }
+    
+    .bp-indicator { position: absolute; left: 8px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: #e85050; opacity: 0; }
+    .code-line.has-bp .bp-indicator { opacity: 1; }
+    .code-line.paused { background: rgba(232,168,56,0.1); }
+
+    /* Gutter dots */
+    .gutter-dots-container { position: absolute; left: 4px; top: 0; bottom: 0; display: flex; align-items: center; gap: 2px; }
+    .gutter-dot { width: 4px; height: 4px; border-radius: 50%; opacity: 0; transition: opacity 0.2s; }
+    .gutter-dot.visible { opacity: 1; }
+
+    /* What-if Overlays */
+    .code-line.wi-active-line { border-left-color: rgba(167,139,250,0.6); background: rgba(167,139,250,0.06); }
+    .wi-inline-annotation { position: absolute; left: 350px; color: #a78bfa; font-size: 10px; background: rgba(167,139,250,0.08); border: 0.5px solid rgba(167,139,250,0.15); border-radius: 3px; padding: 2px 6px; display: none; z-index: 5; pointer-events: none;}
+    .code-line.wi-active-line .wi-inline-annotation:not(:empty) { display: inline-block; }
+    
+    .ghost-highlight { background: rgba(255,255,255,0.03); border-bottom: 1px dashed transparent; }
+
+    /* Syntax Highlighting Mock */
+    .syn-kw { color: #7e9ee8; }     /* blue */
+    .syn-fn { color: #e8a838; }     /* amber */
+    .syn-num { color: #7dcb9e; }    /* teal */
+    .syn-str { color: #7dcb9e; }    /* teal */
+    .syn-br { color: rgba(255,255,255,0.4); } 
+    .syn-comment { color: rgba(255,255,255,0.25); font-style: italic; }
+  </style>
+</head>
+<body>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div style="font-weight: bold; color: rgba(255,255,255,0.8); font-family: sans-serif; letter-spacing: 1px; margin-right: 16px;">VOID</div>
+    <button id="btnPlay"><span style="color: #00c882; margin-right: 4px;">▶</span> RUN</button>
+    <button id="btnPause"><span style="color: #e8a838; margin-right: 4px;">⏸</span> PAUSE</button>
+    <button id="btnStop"><span style="color: #e85050; margin-right: 4px;">■</span> STOP</button>
+    <div style="flex: 1;"></div>
+    <div class="dim-text">v2.0.0 prototype</div>
+  </div>
+
+  <div class="main-area">
+    <!-- SOURCE PANEL -->
+    <div class="source-panel">
+      <div class="source-header">DataProcessor.js</div>
+      <div class="source-code-wrap" id="sourceWrapper">
+        <div id="codeLinesContainer">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="right-sidebar">
+      
+      <!-- VARIABLES PANEL (WITH WHAT-IF) -->
+      <div class="panel">
+        <div class="panel-header" onclick="togglePanel(this)">
+          <div class="panel-header-title">
+            <div class="panel-dot" style="background: #e8a838;"></div> variables
+          </div>
+          <div class="dim-text">▾</div>
+        </div>
+        <div class="panel-content">
+          <div class="var-row"><span class="syn-kw">val</span><span class="syn-num">42</span></div>
+          <div class="var-row"><span class="syn-kw">this.multiplier</span><span class="syn-num">1</span></div>
+          
+          <div class="row-divider"></div>
+          
+          <!-- WHAT-IF SANDBOX -->
+          <div class="whatif-section" id="whatifSection">
+            <div class="whatif-header" id="whatifHeader">
+              <div class="whatif-title">
+                <div class="panel-dot" style="background: #a78bfa;"></div>
+                <span id="whatifTitleText">what-if · pause to activate</span>
+              </div>
+              <div class="dim-text" id="whatifToggleArrow">▸</div>
+            </div>
+            
+            <div class="whatif-content" id="whatifContent">
+              <div class="wi-row">
+                <div class="wi-label">val</div>
+                <input type="text" class="wi-input" id="wi-val" value="42">
+              </div>
+              <div class="wi-row">
+                <div class="wi-label">this.multiplier</div>
+                <input type="text" class="wi-input" id="wi-mult" value="1">
+              </div>
+              
+              <div class="wi-buttons">
+                <button id="btnSimulate">simulate &rarr;</button>
+                <button class="btn-clear" id="btnClearOverrides">clear overrides</button>
+              </div>
+
+              <div class="wi-result-box" id="whatifResultBox">
+                <div class="wi-result-header">
+                  <div class="wi-res-title">◈ hypothetical result</div>
+                  <div class="wi-res-dim">not real execution</div>
+                </div>
+                <!-- Dynamic Results -->
+                <div id="whatifResultsInner"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WATCH PANEL -->
+      <div class="panel">
+        <div class="panel-header" onclick="togglePanel(this)">
+          <div class="panel-header-title">
+            <div class="panel-dot" style="background: #7e9ee8;"></div> watch
+          </div>
+          <div class="dim-text">▾</div>
+        </div>
+        <div class="panel-content">
+          <div class="empty-state">&mdash;</div>
+        </div>
+      </div>
+
+      <!-- PROMISES PANEL -->
+      <div class="panel">
+        <div class="panel-header" onclick="togglePanel(this)">
+          <div class="panel-header-title">
+            <div class="panel-dot" style="background: #7dcb9e;"></div> promises
+          </div>
+          <div class="dim-text">▾</div>
+        </div>
+        <div class="panel-content">
+          <div class="empty-state">&mdash;</div>
+        </div>
+      </div>
+
+      <!-- GHOST RUNS PANEL -->
+      <div class="panel" id="ghostRunsPanel">
+        <div class="panel-header" onclick="togglePanel(this)">
+          <div class="panel-header-title">
+            <div class="panel-dot" style="background: #a78bfa;"></div> ghost runs
+          </div>
+          <div class="dim-text">▾</div>
+        </div>
+        <div class="panel-content" id="ghostRunsPanelContent">
+          <!-- Inputs section -->
+          <div class="ghost-run-list" id="ghostRunList"></div>
+          
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <button id="btnAddRun">+ add run</button>
+            <button id="btnRunGhosts">run all ghosts</button>
+          </div>
+
+          <!-- Timeline section -->
+          <div class="row-divider"></div>
+          
+          <div class="timeline-area" id="timelineArea">
+            <div class="timeline-header">
+              <div class="dim-text tl-fn">function</div>
+              <div class="dim-text tl-bar">timeline</div>
+              <div class="dim-text tl-res">result</div>
+            </div>
+            
+            <div id="timelineTracks"></div>
+            
+            <!-- Divergence lines -->
+            <div id="divergenceContainer"></div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- BOTTOM CONSOLE -->
+  <div class="bottom-bar">
+    <div class="console-header">console output</div>
+    <div class="console-lines" id="consoleOutput">
+      <div class="console-line"><span class="dim-text">Debugger attached. System ready.</span></div>
+    </div>
+  </div>
+
+  <!-- TOOLTIP -->
+  <div id="ghostTooltip"></div>
+
+  <script>
+    /* =========================================================
+       SHARED UTILITIES & STATE
+       ========================================================= */
+    const UI = {
+      codeLinesContainer: document.getElementById('codeLinesContainer'),
+      consoleOut: document.getElementById('consoleOutput'),
+      bpLine: 6 // Mocking: setting breakpoint on line 6 (inside process())
+    };
+
+    const COLORS = ['#00c882', '#7e9ee8', '#e8a838', '#e85050', '#a78bfa'];
+    let debugState = { paused: false };
+
+    function log(msg, color = null) {
+      const line = document.createElement('div');
+      line.className = 'console-line';
+      if(color) {
+        line.innerHTML = `<span style="color:${color}">${msg}</span>`;
+      } else {
+        line.textContent = msg;
+      }
+      UI.consoleOut.appendChild(line);
+      UI.consoleOut.scrollTop = UI.consoleOut.scrollHeight;
+    }
+
+    function togglePanel(el) {
+      const content = el.nextElementSibling;
+      const arrow = el.querySelector('.dim-text');
+      if (content.style.display === 'none') {
+        content.style.display = 'flex';
+        arrow.textContent = '▾';
+      } else {
+        content.style.display = 'none';
+        arrow.textContent = '▸';
+      }
+    }
+
+    /* =========================================================
+       MOCK SOURCE CODE SETUP
+       ========================================================= */
+    const sourceCode = [
+      'class DataProcessor {',
+      '  constructor(multiplier) {',
+      '    this.multiplier = multiplier;',
+      '  }',
+      '  process(val) {',
+      '    let result = val * this.multiplier;',
+      '    return result;',
+      '  }',
+      '  async fetchStats() {',
+      '    await new Promise(r => setTimeout(r, 100));',
+      '    return true;',
+      '  }',
+      '}'
+    ];
+
+    function renderSource() {
+      let html = '';
+      sourceCode.forEach((line, idx) => {
+        const num = idx + 1;
+        // Basic naive highlighting
+        let ht = line
+          .replace(/class/g, '<span class="syn-kw">class</span>')
+          .replace(/let/g, '<span class="syn-kw">let</span>')
+          .replace(/this/g, '<span class="syn-kw">this</span>')
+          .replace(/return/g, '<span class="syn-kw">return</span>')
+          .replace(/async|await/g, '<span class="syn-kw">$&</span>')
+          .replace(/new/g, '<span class="syn-kw">new</span>')
+          .replace(/DataProcessor|Promise/g, '<span class="syn-fn">$&</span>')
+          .replace(/constructor|process|fetchStats|setTimeout/g, '<span class="syn-fn">$&</span>')
+          .replace(/\b(42|100)\b/g, '<span class="syn-num">$&</span>')
+          .replace(/[{}]/g, '<span class="syn-br">$&</span>');
+
+        html += `
+          <div class="code-line" id="line-${num}" onclick="toggleBreakpoint(${num})">
+            <div class="code-gutter">
+              <div class="bp-indicator"></div>
+              <div class="gutter-dots-container" id="gdots-${num}"></div>
+              ${num}
+            </div>
+            <div class="code-content">${ht}</div>
+            <div class="wi-inline-annotation" id="wi-anno-${num}"></div>
+          </div>
+        `;
+      });
+      UI.codeLinesContainer.innerHTML = html;
+      // Initialize with BP on line 6 for the sandbox test
+      document.getElementById('line-6').classList.add('has-bp');
+    }
+
+    function toggleBreakpoint(num) {
+      document.getElementById(`line-${num}`).classList.toggle('has-bp');
+      // For demo, force line 6 as primary breakpoint line
+      if (num === 6) UI.bpLine = document.getElementById(`line-6`).classList.contains('has-bp') ? 6 : null;
+    }
+
+    /* =========================================================
+       GHOST RUNS LOGIC
+       ========================================================= */
+    const ghostState = {
+      runs: [
+        { id: '1', label: 'run 1', json: '{"multiplier": 2}', color: COLORS[0], active: true },
+        { id: '2', label: 'run 2', json: '{"multiplier": 3}', color: COLORS[1], active: true }
+      ],
+      nextId: 3
+    };
+
+    const els = {
+      list: document.getElementById('ghostRunList'),
+      addBtn: document.getElementById('btnAddRun'),
+      runBtn: document.getElementById('btnRunGhosts'),
+      tracks: document.getElementById('timelineTracks'),
+      tooltip: document.getElementById('ghostTooltip'),
+      divContainer: document.getElementById('divergenceContainer')
+    };
+
+    function renderGhostInputs() {
+      els.list.innerHTML = '';
+      ghostState.runs.forEach((r, i) => {
+        // Guarantee color order never randomifies
+        r.color = COLORS[i % 5]; 
+
+        const row = document.createElement('div');
+        row.className = 'ghost-row';
+        row.innerHTML = `
+          <div class="ghost-row-dot ${r.active?'':'inactive'}" style="background:${r.color}" onclick="toggleGhostRun(${i})"></div>
+          <input class="ghost-row-label" type="text" value="${r.label}" maxlength="12" onchange="updateGhostRun(${i}, 'label', this.value)">
+          <div class="ghost-json-wrap">
+            <textarea class="ghost-json-input" placeholder='{"multiplier": 3}' onblur="validateGhostJson(this, ${i})">${r.json}</textarea>
+            <div class="ghost-error-msg">invalid json</div>
+          </div>
+          <button class="ghost-remove-btn" onclick="removeGhostRun(${i})">✕</button>
+        `;
+        els.list.appendChild(row);
+      });
+
+      els.addBtn.disabled = ghostState.runs.length >= 5;
+      updateGutterDots(); // Live update dots if removed/toggled
+    }
+
+    window.toggleGhostRun = (idx) => {
+      ghostState.runs[idx].active = !ghostState.runs[idx].active;
+      renderGhostInputs();
+      renderTimelines([]); // Clear timelines on state change
+    };
+
+    window.updateGhostRun = (idx, field, val) => {
+      ghostState.runs[idx][field] = val;
+    };
+
+    window.validateGhostJson = (textarea, idx) => {
+      const val = textarea.value.trim();
+      const wrap = textarea.parentElement;
+      const err = wrap.querySelector('.ghost-error-msg');
+      try {
+        if(val) JSON.parse(val);
+        textarea.classList.remove('error');
+        err.style.display = 'none';
+        ghostState.runs[idx].json = val;
+      } catch(e) {
+        textarea.classList.add('error');
+        err.style.display = 'block';
+      }
+    };
+
+    window.removeGhostRun = (idx) => {
+      const row = els.list.children[idx];
+      row.style.transition = 'all 0.1s ease';
+      row.style.opacity = '0';
+      row.style.height = '0px';
+      row.style.overflow = 'hidden';
+      setTimeout(() => {
+        ghostState.runs.splice(idx, 1);
+        renderGhostInputs();
+        renderTimelines([]); 
+      }, 150);
+    };
+
+    els.addBtn.onclick = () => {
+      if(ghostState.runs.length < 5) {
+        ghostState.runs.push({
+          id: String(ghostState.nextId++),
+          label: `run ${ghostState.runs.length + 1}`,
+          json: `{"multiplier": ${Math.floor(Math.random()*5)+2}}`,
+          active: true
+        });
+        renderGhostInputs();
+      }
+    };
+
+    // Simulation Execution
+    els.runBtn.onclick = () => {
+      // Validate all JSON first
+      const txts = els.list.querySelectorAll('.ghost-json-input');
+      let valid = true;
+      txts.forEach(t => t.focus() || t.blur());
+      if(els.list.querySelector('.error')) return;
+
+      els.runBtn.textContent = 'running...';
+      els.runBtn.classList.add('active');
+      clearGutterDots();
+      
+      const results = ghostState.runs.map(r => {
+        if(!r.active) return null;
+        let inputs = {};
+        if(r.json) try{ inputs = JSON.parse(r.json); }catch(e){}
+        const mult = inputs.multiplier ?? 1;
+        
+        // Mock 3 steps
+        const s1 = { fn: 'constructor', dur: 2+Math.random()*6, lines: [2,3,4], vars: { multiplier: mult } };
+        const s2 = { fn: 'process', dur: 1+Math.random()*4, lines: [5,6,7,8], vars: { val: 42, multiplier: mult, result: 42*mult } };
+        const s3 = { fn: 'fetchStats', dur: 80+Math.random()*120, lines: [9,10,11,12], vars: {} };
+        const totalDuration = s1.dur + s2.dur + s3.dur;
+
+        return { run: r, steps: [s1, s2, s3], finalResult: 42*mult, totalDuration };
+      }).filter(x=>x);
+
+      // Setup DOM bars right away but width 0
+      renderTimelines(results, false);
+      
+      // Compute divergence
+      // Divergence occurs if active runs have different 'multiplier' in constructor/process
+      const mults = results.map(r => r.steps[0].vars.multiplier);
+      const isDivergent = (new Set(mults).size > 1) && mults.length > 1;
+
+      setTimeout(() => {
+        els.runBtn.textContent = 'run all ghosts';
+        els.runBtn.classList.remove('active');
+        animateTimelinesAndDots(results, isDivergent);
+        
+        // Console Logging
+        results.forEach(res => {
+          log(`[ghost] ${res.run.label} → process() = ${res.finalResult}  (${Math.round(res.totalDuration)}ms total)`, res.run.color);
+        });
+      }, 50); // slight delay to allow CSS transitions to trigger
+    };
+
+    function renderTimelines(results, final = true) {
+      els.tracks.innerHTML = '';
+      els.divContainer.innerHTML = '';
+      els.tooltip.style.display = 'none';
+
+      if(results.length === 0) return;
+
+      const maxDur = Math.max(...results.map(r => r.totalDuration));
+
+      results.forEach((res, i) => {
+        const row = document.createElement('div');
+        row.className = 'track-row';
+        
+        const c1 = document.createElement('div');
+        c1.className = 'track-fn-col';
+        c1.innerHTML = `<div class="ghost-row-dot" style="background:${res.run.color}"></div>${res.run.label}`;
+        
+        const c2 = document.createElement('div');
+        c2.className = 'track-bar-col';
+        
+        // BG bar
+        const bg = document.createElement('div');
+        bg.className = 'track-bg';
+        bg.style.background = hexToRgba(res.run.color, 0.35);
+        bg.style.width = final ? '100%' : '0%';
+        c2.appendChild(bg);
+
+        // Segments
+        let leftPx = 0; // % driven
+        res.steps.forEach(s => {
+          const seg = document.createElement('div');
+          seg.className = 'track-segment';
+          seg.style.background = hexToRgba(res.run.color, 0.8);
+          
+          let wPct = (s.dur / res.totalDuration) * 100;
+          let leftPct = (leftPx / res.totalDuration) * 100;
+          leftPx += s.dur;
+
+          seg.style.left = `${leftPct}%`;
+          seg.style.width = final ? `${wPct}%` : '0%';
+
+          // Interactions
+          seg.onmouseenter = (e) => {
+            showGhostTooltip(e, s, res.run.color);
+            highlightSourceLines(s.lines, res.run.color);
+          };
+          seg.onmouseleave = () => {
+            els.tooltip.style.display = 'none';
+            clearSourceHighlight();
+          };
+          seg.onclick = () => {
+            const el = document.getElementById(`line-${s.lines[0]}`);
+            if(el) el.scrollIntoView({behavior: 'smooth', block: 'center'});
+          };
+
+          c2.appendChild(seg);
+        });
+
+        const c3 = document.createElement('div');
+        c3.className = 'track-res-col';
+        c3.style.color = res.run.color;
+        c3.textContent = final ? res.finalResult : '';
+
+        row.appendChild(c1);
+        row.appendChild(c2);
+        row.appendChild(c3);
+        els.tracks.appendChild(row);
+      });
+    }
+
+    function animateTimelinesAndDots(results, showDiv) {
+      // Trigger width transitions
+      const rows = els.tracks.querySelectorAll('.track-row');
+      rows.forEach((row, i) => {
+        const bg = row.querySelector('.track-bg');
+        bg.style.width = '100%';
+        
+        const segs = row.querySelectorAll('.track-segment');
+        let left = 0;
+        segs.forEach((seg, j) => {
+          const w = (results[i].steps[j].dur / results[i].totalDuration) * 100;
+          seg.style.width = `${w}%`;
+        });
+        
+        row.querySelector('.track-res-col').textContent = results[i].finalResult;
+      });
+
+      // Show divergence line roughly midway
+      if (showDiv) {
+        setTimeout(() => {
+          const divLine = document.createElement('div');
+          divLine.className = 'divergence-line';
+          divLine.style.left = '40%';
+          divLine.style.display = 'block';
+          
+          const divLabel = document.createElement('div');
+          divLabel.className = 'divergence-label';
+          divLabel.style.left = '40%';
+          divLabel.innerHTML = '⚡ divergence';
+          divLabel.style.display = 'block';
+          
+          els.divContainer.appendChild(divLine);
+          els.divContainer.appendChild(divLabel);
+        }, 300);
+      }
+
+      // Populate points in editor gutters
+      window.__lastGhostResults = results; // cache for resize/updates
+      setTimeout(updateGutterDots, 600);
+    }
+
+    function updateGutterDots() {
+      clearGutterDots();
+      if(!window.__lastGhostResults) return;
+      
+      const activeLineHits = {}; // lineNum -> set of runs
+      window.__lastGhostResults.forEach(res => {
+        if(!res.run.active) return;
+        res.steps.forEach(s => {
+          s.lines.forEach(ln => {
+            if(!activeLineHits[ln]) activeLineHits[ln] = [];
+            activeLineHits[ln].push(res.run);
+          });
+        });
+      });
+
+      // All possible runs to preserve gaps for inactive/missed lines
+      const allActiveRuns = ghostState.runs.filter(r=>r.active);
+
+      Object.keys(activeLineHits).forEach(ln => {
+        const container = document.getElementById(`gdots-${ln}`);
+        if(container) {
+          container.innerHTML = '';
+          allActiveRuns.forEach(r => {
+            const dot = document.createElement('div');
+            dot.className = 'gutter-dot';
+            if(activeLineHits[ln].includes(r)) {
+              dot.style.background = r.color;
+              dot.classList.add('visible');
+            } else {
+              dot.style.background = 'transparent';
+              dot.classList.add('visible'); // keep width spacing
+            }
+            container.appendChild(dot);
+          });
+        }
+      });
+    }
+
+    function clearGutterDots() {
+      document.querySelectorAll('.gutter-dots-container').forEach(c => c.innerHTML='');
+    }
+
+    function showGhostTooltip(e, stepData, color) {
+      els.tooltip.style.display = 'block';
+      let varsStr = Object.entries(stepData.vars).map(([k,v]) => `${k}: ${v}`).join('\n');
+      els.tooltip.innerHTML = `
+<div style="color:${color}; margin-bottom:4px; font-weight:bold;">${stepData.fn}()</div>
+<div class="dim-text" style="margin-bottom:4px;">${Math.round(stepData.dur)}ms execution</div>
+${varsStr}
+      `.trim();
+      
+      const rect = e.target.getBoundingClientRect();
+      els.tooltip.style.left = `${rect.left}px`;
+      els.tooltip.style.top = `${rect.top - 70}px`;
+    }
+
+    function highlightSourceLines(lines, color) {
+      lines.forEach(ln => {
+        const el = document.getElementById(`line-${ln}`);
+        if(el) {
+          el.classList.add('ghost-highlight');
+          el.style.borderBottomColor = color;
+        }
+      });
+    }
+    
+    function clearSourceHighlight() {
+      document.querySelectorAll('.ghost-highlight').forEach(el => {
+        el.classList.remove('ghost-highlight');
+        el.style.borderBottomColor = 'transparent';
+      });
+    }
+
+    function hexToRgba(hex, alpha) {
+      var r = parseInt(hex.slice(1, 3), 16),
+          g = parseInt(hex.slice(3, 5), 16),
+          b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+
+    /* =========================================================
+       WHAT-IF SANDBOX LOGIC
+       ========================================================= */
+    const wi = {
+      section: document.getElementById('whatifSection'),
+      header: document.getElementById('whatifHeader'),
+      titleText: document.getElementById('whatifTitleText'),
+      content: document.getElementById('whatifContent'),
+      arrow: document.getElementById('whatifToggleArrow'),
+      
+      inVal: document.getElementById('wi-val'),
+      inMult: document.getElementById('wi-mult'),
+      btnSimulate: document.getElementById('btnSimulate'),
+      btnClear: document.getElementById('btnClearOverrides'),
+      resBox: document.getElementById('whatifResultBox'),
+      resInner: document.getElementById('whatifResultsInner'),
+      skippedBox: document.getElementById('whatifSkipped'),
+      skippedBadges: document.getElementById('whatifSkippedBadges'),
+
+      timer: null
+    };
+
+    function updateWhatIfState() {
+      if(!debugState.paused) {
+        wi.section.style.pointerEvents = 'none';
+        wi.section.style.opacity = '0.4';
+        wi.titleText.textContent = 'what-if · pause to activate';
+        wi.content.classList.remove('expanded');
+        wi.arrow.textContent = '▸';
+        wi.resBox.style.display = 'none';
+        clearWhatIfOverlays();
+      } else {
+        wi.section.style.pointerEvents = 'auto';
+        wi.section.style.opacity = '1';
+        wi.titleText.textContent = 'what-if';
+        // default collapse until clicked if paused, but let's leave it as is
+      }
+    }
+
+    wi.header.onclick = () => {
+      if(!debugState.paused) return;
+      if (wi.content.classList.contains('expanded')) {
+        wi.content.classList.remove('expanded');
+        wi.arrow.textContent = '▸';
+        clearWhatIfOverlays(); // clear on collapse
+      } else {
+        wi.content.classList.add('expanded');
+        wi.arrow.textContent = '▾';
+      }
+    };
+
+    // Auto-Simulate logic
+    [wi.inVal, wi.inMult].forEach(inp => {
+      inp.addEventListener('input', () => {
+        inp.classList.add('overridden');
+        
+        // Validate numeric
+        if(isNaN(inp.value)) {
+          inp.classList.add('error');
+          wi.btnSimulate.disabled = true;
+          return;
+        } else {
+          inp.classList.remove('error');
+        }
+        
+        if(!wi.inVal.classList.contains('error') && !wi.inMult.classList.contains('error')) {
+          wi.btnSimulate.disabled = false;
+        }
+
+        // Debounced auto-simulate if result box is visible
+        if(wi.resBox.style.display === 'block') {
+          clearTimeout(wi.timer);
+          wi.timer = setTimeout(simulateForward, 300);
+        }
+      });
+
+      inp.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter' && !wi.btnSimulate.disabled) simulateForward();
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape' && debugState.paused && wi.content.classList.contains('expanded')) {
+        wi.btnClear.click();
+        wi.header.click(); // collapse
+      }
+    });
+
+    wi.btnClear.onclick = () => {
+      wi.inVal.value = '42';
+      wi.inMult.value = '1';
+      wi.inVal.classList.remove('overridden', 'error');
+      wi.inMult.classList.remove('overridden', 'error');
+      wi.btnSimulate.disabled = false;
+      wi.resBox.style.display = 'none';
+      clearWhatIfOverlays();
+    };
+
+    wi.btnSimulate.onclick = () => {
+      wi.btnSimulate.textContent = 'simulating...';
+      setTimeout(() => {
+        wi.btnSimulate.textContent = 'simulate \u2192';
+        simulateForward();
+      }, 400);
+    };
+
+    function simulateForward() {
+      const v = Number(wi.inVal.value);
+      const m = Number(wi.inMult.value);
+      const resVal = v * m;
+
+      // Update Results Box
+      wi.resInner.innerHTML = `
+        <div class="wi-res-row">
+          <span class="wi-res-name">process() return</span>
+          <span class="wi-res-arrow">⟶</span>
+          <span class="wi-res-val">${resVal}</span>
+        </div>
+        <div class="wi-res-row">
+          <span class="wi-res-name">this.multiplier</span>
+          <span class="wi-res-arrow">⟶</span>
+          <span class="wi-res-val">${m}</span>
+        </div>
+        <div class="wi-res-row">
+          <span class="wi-res-name">execution path</span>
+          <span class="wi-res-arrow">⟶</span>
+          <span class="wi-res-val" style="color:rgba(255,255,255,0.4)">constructor → process → [breakpoint]</span>
+        </div>
+      `;
+
+      // Mock skipped lines if v <= 0 logic (just for demonstration)
+      if (v <= 0) {
+        wi.skippedBox.style.display = 'block';
+        wi.skippedBadges.innerHTML = '<span class="wi-badge">7</span><span class="wi-badge">8</span>';
+      } else {
+        wi.skippedBox.style.display = 'none';
+      }
+
+      wi.resBox.style.display = 'block';
+
+      // Outline Lines in Editor (6,7 inside process)
+      clearWhatIfOverlays();
+      [6, 7].forEach(ln => {
+        const el = document.getElementById(`line-${ln}`);
+        if(el) el.classList.add('wi-active-line');
+      });
+
+      // Inline Annotation
+      const anno = document.getElementById('wi-anno-6');
+      if (anno) {
+        anno.innerHTML = `⟶ ${resVal}`;
+      }
+
+      log(`[what-if] ◈ process() would return ${resVal} with val=${v}, multiplier=${m}`, '#a78bfa');
+    }
+
+    function clearWhatIfOverlays() {
+      document.querySelectorAll('.wi-active-line').forEach(el => el.classList.remove('wi-active-line'));
+      document.querySelectorAll('.wi-inline-annotation').forEach(el => el.innerHTML = '');
+    }
+
+    /* =========================================================
+       MAIN EXECUTION MOCK
+       ========================================================= */
+    document.getElementById('btnPlay').onclick = () => {
+      debugState.paused = false;
+      document.querySelectorAll('.code-line.paused').forEach(el => el.classList.remove('paused'));
+      updateWhatIfState();
+      log("Resumed execution...");
+    };
+
+    document.getElementById('btnPause').onclick = () => {
+      debugState.paused = true;
+      const bpLine = UI.bpLine || 6;
+      document.getElementById(`line-${bpLine}`).classList.add('paused');
+      log(`Paused at breakpoint on line ${bpLine}`, '#e8a838');
+      updateWhatIfState();
+    };
+
+    document.getElementById('btnStop').onclick = () => {
+      debugState.paused = false;
+      document.querySelectorAll('.code-line.paused').forEach(el => el.classList.remove('paused'));
+      updateWhatIfState();
+      log("Execution stopped.", '#e85050');
+    };
+
+    // INIT
+    renderSource();
+    renderGhostInputs();
+    updateWhatIfState();
+
+  </script>
+</body>
+</html>
