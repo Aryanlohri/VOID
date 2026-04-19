@@ -1,24 +1,21 @@
-# VOID DEBUGGER v3.0
+# VOID DEBUGGER
 
-> A from-scratch JavaScript debugger with **AST-instrumented execution**, built in React.
+> A from-scratch JavaScript debugger with **AST-instrumented execution**, built natively in React.
 
----
+## ✨ Overview
 
-## ✨ What It Does
+VOID is a fully browser-based JavaScript debugger — no Node.js backend, no local dependencies at runtime. It works by parsing your code into an Abstract Syntax Tree (AST) and natively instrumenting statements with asynchronous checkpoints, yielding **real** variable inspection, heap state tracking, and line telemetry.
 
-VOID is a fully browser-based JavaScript debugger — no Node.js backend, no npm dependencies at runtime. It parses your code into an AST, instruments every statement with async checkpoints, and gives you **real** pause/resume debugging with **real** variable values.
-
-### Phase 3 — True Step Engine
-
-Unlike toy debuggers that scan lines with regex, VOID uses **AST code transformation** to insert async breakpoints at every statement. When your code hits a checkpoint, execution genuinely pauses via a Promise gate — the variables you see are the actual runtime values, not guesses.
+### Why VOID?
+Unlike simplistic tools that use regex to fake breakpoint positions, VOID leverages true **AST code transformation**. When a user checkpoint triggers, it uses a top-level Promise gate to legitimately hold JavaScript execution without blocking the main event-loop, feeding true in-memory scope trees directly into the UI.
 
 ---
 
 ## 🏗️ Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
-│                    React UI (Vite)                       │
+│                    React UI (Vite)                      │
 │  App → Header, Toolbar, CodeEditor, Panels, Console     │
 ├─────────────────────────────────────────────────────────┤
 │               useDebugger() Hook                        │
@@ -32,102 +29,48 @@ Unlike toy debuggers that scan lines with regex, VOID uses **AST code transforma
 └──────────┴──────────────┴──────────────┴────────────────┘
 ```
 
-### How the Async Gate Works
+---
 
-```
-User Code → Acorn Parse → AST Walk → Insert Checkpoints → Async Function
-                                                              ↓
-                                              await __rt.check(line, scopeFn)
-                                                              ↓
-                                                  ┌─── Breakpoint? ───┐
-                                                  ↓                   ↓
-                                             Pause (Promise)    Continue (resolve)
-                                                  ↓
-                                          UI updates with
-                                          REAL variable values
-                                                  ↓
-                                          User clicks Resume/Step
-                                                  ↓
-                                          Promise resolves →
-                                          execution continues
-```
+## 🎨 Design & Advanced Prototyping
+
+VOID uses a custom standard "Cod Gray" system optimized for long focused debugging sessions. As the debugger matures, major workflow accelerators are designed as prototypes before full integration:
+
+- **Ghost Runs (Beta Prototype)**: Execute multiple "shadow" threads based on variant inputs natively inside a single timeline graph. Visual traces identify exact divergence paths without needing repetitive re-executions.
+- **What-If Sandbox (Beta Prototype)**: Allows a user stopped at a breakpoint to locally overwrite variable states and project forward-execution side effects (results & skipped lines) safely mapped inline.
+
+*Note: The standalone concepts interface is viewable directly via `void-prototype.html`.*
 
 ---
 
-## 📦 Project Structure
+## 📦 Core System Features
 
-```
-Debugger/
-├── index.html                # Vite entry (Google Fonts, meta)
-├── package.json              # React 19 + Acorn + Vite 8
-├── vite.config.js
-├── src/
-│   ├── main.jsx              # React root
-│   ├── App.jsx               # Layout + keyboard shortcuts
-│   ├── index.css             # Cod Gray theme (dark/light)
-│   ├── lib/
-│   │   ├── helpers.js        # Utilities, constants, sample code
-│   │   ├── ast-engine.js     # Acorn AST parser + syntax highlighter
-│   │   ├── code-instrumenter.js  # AST transform: insert checkpoints
-│   │   ├── execution-runtime.js  # Async gate controller
-│   │   ├── breakpoint-manager.js # Rich breakpoint types
-│   │   └── debug-engine.js   # Orchestrator (v3)
-│   ├── hooks/
-│   │   └── useDebugger.js    # Central React state hook
-│   └── components/
-│       ├── Header.jsx        # Logo + status + clock
-│       ├── Toolbar.jsx       # Run/Step/Stop/Open/Save
-│       ├── TabBar.jsx        # Multi-file tabs
-│       ├── CodeEditor.jsx    # Layered editor + BP context menu
-│       ├── VariablesPanel.jsx
-│       ├── CallStackPanel.jsx
-│       ├── WatchPanel.jsx
-│       ├── ConsolePanel.jsx  # REPL with real scope access
-│       └── BottomBar.jsx     # BP chips + timeline
-└── vanilla-backup/           # Pre-React vanilla version
-```
+### Breakpoint Matrix
+| Type | Icon | Description |
+|------|------|-------------|
+| **Normal** | ● | Pause exactly before line execution. |
+| **Conditional** | ◆ | Evaluate active-scope expression (e.g. `i === 5`). |
+| **Logpoint** | ◇ | Trace telemetry cleanly (`"value: {x}"`). |
+| **Hit Count** | ◈ | Dynamically halt specifically on the *Nth* cyclic hit. |
+| **Exception** | ⚡ | Interrupt thread safely upon thrown errors. |
+
+### Technical Analysis
+- **Memory Inspector**: N-Depth hierarchical tracking of Local, Closure, and Global environments paired directly with DOM Heap Object-Reference snapshots.
+- **Performance Profiling**: Asynchronous Event-Loop latency visualizations layered into the Code Editor as heatmaps and hit-counts tracking.
+- **Network Extensibility**: Native proxy overrides mapping dynamic `fetch` lifecycles and resolving `Promise` chain states live.
+- **Polyglot Execution**: AST compilation interceptors evaluating `JavaScript`, executing zero-overhead `TypeScript` (Sucrase), and isolating `Python` runtimes directly inside browser WebAssembly (Pyodide).
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## ⌨️ Shortcut Bindings
 
 | Key | Action |
 |-----|--------|
-| `F5` | Run / Resume |
-| `Shift+F5` | Stop |
+| `F5` | Run / Resume Thread |
+| `Shift+F5` | Hard Stop |
 | `F10` | Step Over |
 | `F11` | Step Into |
 | `Shift+F11` | Step Out |
-| `Ctrl+O` | Open file |
-| `Ctrl+S` | Save file |
-| `Ctrl+Click` | Jump to definition |
-| `Right-click line` | Breakpoint context menu |
-
----
-
-## 🔴 Breakpoint Types
-
-| Type | Icon | Description |
-|------|------|-------------|
-| Normal | ● | Pause at this line |
-| Conditional | ◆ | Pause when expression is truthy, e.g. `i === 5` |
-| Logpoint | ◇ | Log a message without pausing: `"x = {x}"` |
-| Hit Count | ◈ | Pause on the Nth hit |
-| Exception | ⚡ | Pause on thrown errors (via settings) |
-
----
-
-## 🎨 Design System
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| Cod Gray | `#111111` | Background |
-| Surface | `#171717` | Panels |
-| Warm Amber | `#d4a574` | Keywords, accents |
-| Mint Green | `#7ec9a4` | Strings, success |
-| Steel Blue | `#7eb8da` | Numbers, info |
-| Rose | `#d47b8a` | Errors, breakpoints |
-| Lilac | `#b09cd8` | Functions, logpoints |
+| `Right-click gutter`| Contextually switch BP Type |
 
 ---
 
@@ -137,80 +80,18 @@ Debugger/
 cd Debugger
 npm install
 npm run dev
-# Open http://localhost:5173
+
+# Mounts native dev server to http://localhost:5173
 ```
 
 ---
 
-## 📋 Roadmap
+## 🛣️ Roadmap Trackers
 
-- [x] **Phase 1 — Foundation**: Breakpoints, stepping, variables, call stack, REPL, watch, timeline
-- [x] **Phase 2 — Source Intelligence**: AST parsing (Acorn), syntax highlighting, multi-file tabs, code folding
-- [x] **React Conversion**: Full port to Vite + React component architecture
-- [x] **Phase 3 — True Step Engine**: AST-instrumented execution, async gates, step into/over/out, conditional breakpoints, logpoints, hit count breakpoints, exception breakpoints, continue to cursor
-- [x] **Phase 4 — Memory Inspector**: Heap snapshots, closure scope chains, prototype explorer
-- [x] **Phase 5 — Profiler**: CPU flame chart, hot-path highlighting, event loop latency
-- [x] **Phase 6 — Async/Network**: Promise chain visualizer, fetch inspector
-- [x] **Phase 7 — Multi-Language**: Python via Pyodide, TypeScript support
-- [ ] **Phase 8 — Remote Debugging**: Chrome DevTools Protocol integration
-
----
-
-## 📄 Changelog
-
-### v7.0.0 — Phase 7: Multi-Language
-- **TypeScript Support**: Native execution of `.ts` files via high-speed zero-artifact Sucrase transpilation prior to AST instrumentation
-- **Python Support**: Pyodide webassembly integration to execute `.py` scripts via an injected `ast` traversal mechanism replacing `sys.settrace`
-- **Dynamic File Parsing**: Automatic file extension detection seamlessly mapping execution to different compiler runners and highlighting languages appropriately.
-
-### v6.0.0 — Phase 6: Async/Network
-- **Fetch Inspector**: Network panel to visualize fetch requests, methods, durations, and response data
-- **Promise Visualizer**: Live tracking of Promise state transitions (pending/fulfilled/rejected)
-- **Async Interception**: Custom global proxy wrappers for fetch and promises to capture async lifecycle
-
-### v5.0.0 — Phase 5: Profiler
-- **CPU Flame Chart**: Visualizing execution time across the call stack with reactive tree rendering.
-- **Hot-Path Highlighting**: Editor gutter color-codes lines based on execution frequency.
-- **Event Loop Latency**: Real-time tracking of async pause/resume latency.
-
-### v4.0.0 — Phase 4: Memory Inspector
-- **Closure Scope Chains**: Code instrumenter tracks lexical environments and captures variables hierarchically (Local, Closure, Global)
-- **Prototype Explorer**: Real runtime prototype chain inspection via `ObjectTree` component
-- **Heap Snapshots**: Interactive, expandable object state within `VariablesPanel` powered directly by browser memory references
-
-### v3.0.0 — Phase 3: True Step Engine
-- **AST-Instrumented Execution**: Code is transformed via Acorn AST to insert async checkpoints at every statement
-- **Real Variable Values**: Variables panel shows actual runtime values, not regex guesses
-- **Async Gate Controller**: Execution genuinely pauses via Promise gate — not setTimeout simulation
-- **Step Into/Over/Out**: Real scope entry/exit tracking via call depth
-- **Conditional Breakpoints**: Evaluate JS expressions in scope context (e.g., `i === 5`)
-- **Logpoints**: Log interpolated messages without pausing (`"value is {x}"`)
-- **Hit Count Breakpoints**: Break on Nth execution of a line
-- **Exception Breakpoints**: Pause on thrown errors
-- **Continue to Cursor**: Run until a specific line
-- **Context Menu**: Right-click line numbers for breakpoint type selection
-- **Real REPL**: Console evaluates expressions with actual runtime scope
-
-### v2.0.0 — Phase 2: Source Intelligence + React
-- Acorn AST parsing and syntax tokenization
-- Multi-file tab system with File System Access API
-- Hover-to-inspect with runtime value tooltips
-- Full React conversion with Vite
-- Cod Gray (#171717) design system
-
-### v1.0.0 — Phase 1: Foundation
-- Custom step-through execution engine
-- Breakpoint system with line-number gutter
-- Variables panel, call stack, watch expressions
-- REPL console with history
-- Execution timeline visualization
-
----
-
-## 🛠️ Tech Stack
-
-- **React 19** — Component architecture
-- **Vite 8** — Build tooling + HMR
-- **Acorn** — AST parsing + code instrumentation
-- **Vanilla CSS** — Cod Gray design system
-- **ES2024** — Async/await, Proxy, WeakMap
+- ✅ **Phase 1 & 2**: React UI scaffolding, Variables, Timeline, and Acorn syntax ingestion.
+- ✅ **Phase 3 (Step Engine)**: AST async gates, advanced conditional breaks, step bounds logic.
+- ✅ **Phase 4 (Memory)**: Deep closure tracing and prototypal inspection engines.
+- ✅ **Phase 5 (Profiler)**: Hot-path latency heatmaps and CPU load visualization.
+- ✅ **Phase 6 (Async Network)**: Fetch interceptors and asynchronous DOM Promise visualizers.
+- ✅ **Phase 7 (Multi-Languages)**: TypeScript injection and remote Python WASM engines.
+- ⏳ **Phase 8 (External Protocol)**: Chrome DevTools implementation endpoints.
