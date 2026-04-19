@@ -218,7 +218,7 @@ export class ASTEngine {
   }
 
   highlight(code) {
-    if (!code) return '';
+    if (!code) return [];
     const tokens = [...this.tokens].filter(t => t.start < code.length);
     const parts = [];
     let lastEnd = 0;
