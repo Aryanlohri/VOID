@@ -94,4 +94,4 @@ npm run dev
 - ✅ **Phase 5 (Profiler)**: Hot-path latency heatmaps and CPU load visualization.
 - ✅ **Phase 6 (Async Network)**: Fetch interceptors and asynchronous DOM Promise visualizers.
 - ✅ **Phase 7 (Multi-Languages)**: TypeScript injection and remote Python WASM engines.
-- ⏳ **Phase 8 (External Protocol)**: Chrome DevTools implementation endpoints.
+- ✅ **Phase 8 (External Protocol)**: Chrome DevTools implementation endpoints.
