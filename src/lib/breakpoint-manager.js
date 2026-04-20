@@ -202,4 +202,23 @@ export class BreakpointManager {
       hitCount: bp.hitCount,
     }));
   }
+
+  /**
+   * Deserialize from persistence / proxy.
+   */
+  deserialize(data) {
+    this.breakpoints.clear();
+    if (!data || !Array.isArray(data)) return;
+    for (const item of data) {
+      const bp = new Breakpoint(item.line, item.type, {
+        condition: item.condition,
+        logMessage: item.logMessage,
+        hitTarget: item.hitTarget
+      });
+      bp.id = item.id;
+      bp.enabled = item.enabled;
+      bp.hitCount = item.hitCount;
+      this.breakpoints.set(item.line, bp);
+    }
+  }
 }
