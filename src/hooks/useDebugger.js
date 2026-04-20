@@ -4,9 +4,11 @@
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ASTEngine } from '../lib/ast-engine.js';
-import { DebugEngine, TimelineLog, ConsoleEngine } from '../lib/debug-engine.js';
+import { ConsoleEngine } from '../lib/debug-engine.js';
+import { WorkerProxyEngine } from '../lib/worker-proxy-engine.js';
 import { CDPEngine } from '../lib/cdp-engine.js';
 import { ts, formatValue, SAMPLE_CODE } from '../lib/helpers.js';
+import { TimelineLog } from '../lib/debug-engine.js';
 
 export function useDebugger() {
   const astRef = useRef(new ASTEngine());
@@ -51,14 +53,14 @@ export function useDebugger() {
 
       case 'step':
         setCurrentStep(data.step);
-        setScopeChain(data.step.scopeChain || []);
+        setScopeChain(data.step.vars || []);
         setCallStack(data.step.stack || []);
         setTimelineEvents(timelineRef.current.getEvents());
         break;
 
       case 'breakpoint-hit':
         setCurrentStep(data.step);
-        setScopeChain(data.step.scopeChain || []);
+        setScopeChain(data.step.vars || []);
         setCallStack(data.step.stack || []);
         setTimelineEvents(timelineRef.current.getEvents());
         addConsoleLine({
@@ -70,7 +72,7 @@ export function useDebugger() {
 
       case 'exception-hit':
         setCurrentStep(data.step);
-        setScopeChain(data.step.scopeChain || []);
+        setScopeChain(data.step.vars || []);
         setCallStack(data.step.stack || []);
         setTimelineEvents(timelineRef.current.getEvents());
         addConsoleLine({
@@ -115,7 +117,7 @@ export function useDebugger() {
 
   // Initialize engine
   useEffect(() => {
-    engineRef.current = new DebugEngine(timelineRef.current, handleEngineEvent);
+    engineRef.current = new WorkerProxyEngine(timelineRef.current, handleEngineEvent);
     cdpEngineRef.current = new CDPEngine(timelineRef.current, handleEngineEvent);
     addConsoleLine({ type: 'info', msg: 'VOID Debugger v3.0 — True Step Engine initialized.', ts: ts() });
     addConsoleLine({ type: 'log', msg: 'Set breakpoints → click line numbers. Right-click → conditional BP, logpoint.', ts: ts() });
@@ -260,7 +262,13 @@ export function useDebugger() {
     }
     
     const engine = getActiveEngine();
-    const ctx = engine ? engine.getCurrentScope() : {};
+    let ctx = {};
+    if (cdpMode) {
+      ctx = engine ? engine.getCurrentScope() : {};
+    } else {
+      // Reconstruct context from the flat scope chain for UI evaluation
+      scopeChain.forEach(scope => { if (scope.vars) Object.assign(ctx, scope.vars); });
+    }
     const result = consoleEngRef.current.evaluate(expr, ctx);
     if (result.ok) {
       addConsoleLine({ type: 'result', msg: `← ${formatValue(result.value)}`, ts: ts() });
@@ -284,9 +292,10 @@ export function useDebugger() {
   const evaluateWatch = useCallback((expr) => {
     if (cdpMode) return { ok: false, error: 'CDP watches unsupported yet' };
     const engine = getActiveEngine();
-    const ctx = engine ? engine.getCurrentScope() : {};
+    let ctx = {};
+    scopeChain.forEach(scope => { if (scope.vars) Object.assign(ctx, scope.vars); });
     return consoleEngRef.current.evaluate(expr, ctx);
-  }, [cdpMode, getActiveEngine]);
+  }, [cdpMode, getActiveEngine, scopeChain]);
 
   // File management (unchanged)
   const addFile = useCallback((name, content = '') => {
