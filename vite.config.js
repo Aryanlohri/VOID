@@ -12,5 +12,9 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/cdp/, '')
       }
     }
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
   }
 })
