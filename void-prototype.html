@@ -6,58 +6,271 @@
   <style>
     /* DESIGN SYSTEM */
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root, .theme-dark {
+      --bg-root: #0f0f0f;
+      --bg-panel: #141414;
+      --bg-topbar: #141414;
+      --border-panel: 0.5px solid rgba(255,255,255,0.07);
+      --border-divider: 0.5px solid rgba(255,255,255,0.05);
+      
+      --text-body: rgba(255,255,255,0.55);
+      --text-dim: rgba(255,255,255,0.2);
+      --text-header: rgba(255,255,255,0.3);
+      --text-strong: rgba(255,255,255,0.8);
+      
+      --bg-source: #0f0f0f;
+      --text-linenum: rgba(255,255,255,0.2);
+      --code-default: rgba(255,255,255,0.55);
+      --text-keyword: #7e9ee8;
+      --text-string: #7dcb9e;
+      --text-comment: rgba(255,255,255,0.25);
+      --text-param: rgba(255,255,255,0.55);
+      
+      --exec-bg: rgba(0,180,100,0.08); /* Assuming same logic or using the amber one from previous? Wait, prompt says: "Active execution cursor line: Background rgba(0,180,100,0.08), Border-left 2px solid #00c882". */
+      --exec-border-left: 2px solid #00c882;
+      
+      --bp-bg: rgba(220,70,70,0.07);
+      --bp-border-left: 2px solid rgba(220,70,70,0.6);
+      
+      --btn-bg: transparent;
+      --btn-border: 0.5px solid rgba(255,255,255,0.12);
+      --btn-color: rgba(255,255,255,0.55);
+      --btn-hover-border: rgba(255,255,255,0.25);
+      --btn-hover-color: rgba(255,255,255,0.8);
+      
+      --btn-active-bg: rgba(0,180,100,0.1);
+      --btn-active-border: 0.5px solid rgba(0,200,130,0.4);
+      --btn-active-color: #00a86b;
+      
+      --btn-destr-border: 0.5px solid rgba(200,60,60,0.2);
+      --btn-destr-color: rgba(200,60,60,0.7);
+      
+      --btn-disabled-border: 0.5px solid rgba(255,255,255,0.06); /* dark equivalent guess */
+      --btn-disabled-color: rgba(255,255,255,0.2);
+      
+      --input-bg: rgba(255,255,255,0.04);
+      --input-border: 0.5px solid rgba(255,255,255,0.12);
+      --input-color: rgba(255,255,255,0.7);
+      --input-focus-border: rgba(255,255,255,0.3);
+      
+      --scrollbar-track: transparent;
+      --scrollbar-thumb: rgba(255,255,255,0.1);
+      --scrollbar-thumb-hover: rgba(255,255,255,0.2);
+      
+      --console-bg: #141414;
+      --console-timestamp: rgba(255,255,255,0.2);
+      --console-log: rgba(255,255,255,0.55);
+      --console-info: #7e9ee8;
+      --console-input-bg: rgba(255,255,255,0.03); /* Not existing in old but requested */
+      --console-placeholder: rgba(255,255,255,0.25);
+      --console-input-border: 0.5px solid rgba(255,255,255,0.06);
+      
+      /* Type Badges - dark mode original */
+      --badge-num-color: #e8a838; --badge-num-border: rgba(232,168,56,0.3); --badge-num-bg: rgba(232,168,56,0.07);
+      --badge-str-color: #7dcb9e; --badge-str-border: rgba(125,203,158,0.3); --badge-str-bg: rgba(125,203,158,0.07);
+      --badge-obj-color: #00c882; --badge-obj-border: rgba(0,200,130,0.3); --badge-obj-bg: rgba(0,200,130,0.07);
+      --badge-null-color: #e85050; --badge-null-border: rgba(232,80,80,0.3); --badge-null-bg: rgba(232,80,80,0.07);
+      --badge-bool-color: #7e9ee8; --badge-bool-border: rgba(126,158,232,0.3); --badge-bool-bg: rgba(126,158,232,0.07);
+      
+      --dot-default: rgba(255,255,255,0.2);
+      --dot-network: #00c882;
+      --dot-promises: #e8a838;
+      --dot-ghostruns: #a78bfa;
+      --dot-whatif: #a78bfa;
+      
+      --diverge-line: rgba(255,255,255,0.15);
+      --diverge-label: rgba(255,255,255,0.3);
+      
+      --wi-res-bg: rgba(167,139,250,0.05);
+      --wi-res-border: 0.5px solid rgba(167,139,250,0.2);
+      
+      --ghost-ann-color: #a78bfa;
+      --ghost-ann-bg: rgba(167,139,250,0.08);
+      --ghost-ann-border: 0.5px solid rgba(167,139,250,0.15);
+      
+      --hm-med-bg: rgba(232,168,56,0.1);
+      --hm-med-border: rgba(232,168,56,0.5);
+      --hm-med-counter: rgba(232,168,56,0.7);
+      
+      --hm-high-bg: rgba(232,80,80,0.1);
+      --hm-high-border: rgba(232,80,80,0.55);
+      --hm-high-counter: #e85050;
+      
+      --tab-act-bg: transparent;
+      --tab-act-border: transparent;
+      --tab-act-color: rgba(255,255,255,0.8);
+      --tab-inact-color: rgba(255,255,255,0.35);
+      --tab-inact-border: transparent;
+
+      /* Accents */
+      --accent-green: #00c882;
+      --accent-blue: #7e9ee8;
+      --accent-amber: #e8a838;
+      --accent-red: #e85050;
+      --accent-teal: #7dcb9e;
+      --accent-purple: #a78bfa;
+    }
+
+    .theme-light {
+      --bg-root: #f5f2ee;
+      --bg-panel: #edeae5;
+      --bg-topbar: #e8e4df;
+      --border-panel: 0.5px solid rgba(0,0,0,0.08);
+      --border-divider: 0.5px solid rgba(0,0,0,0.05);
+      
+      --text-body: rgba(0,0,0,0.65);
+      --text-dim: rgba(0,0,0,0.3);
+      --text-header: rgba(0,0,0,0.35);
+      --text-strong: rgba(0,0,0,0.8);
+      
+      --bg-source: #f0ece6;
+      --text-linenum: rgba(0,0,0,0.2);
+      --code-default: rgba(0,0,0,0.6);
+      --text-keyword: #3a5fa8;
+      --text-string: #2e7d4f;
+      --text-comment: rgba(0,0,0,0.3);
+      --text-param: #8a5a1a;
+      
+      --exec-bg: rgba(0,180,100,0.08);
+      --exec-border-left: 2px solid #00c882;
+      
+      --bp-bg: rgba(220,70,70,0.07);
+      --bp-border-left: 2px solid rgba(220,70,70,0.6);
+      
+      --btn-bg: transparent;
+      --btn-border: 0.5px solid rgba(0,0,0,0.15);
+      --btn-color: rgba(0,0,0,0.5);
+      --btn-hover-border: rgba(0,0,0,0.3);
+      --btn-hover-color: rgba(0,0,0,0.8);
+      
+      --btn-active-bg: rgba(0,180,100,0.1);
+      --btn-active-border: 0.5px solid rgba(0,200,130,0.4);
+      --btn-active-color: #00a86b;
+      
+      --btn-destr-border: 0.5px solid rgba(200,60,60,0.2);
+      --btn-destr-color: rgba(200,60,60,0.7);
+      
+      --btn-disabled-border: 0.5px solid rgba(0,0,0,0.06);
+      --btn-disabled-color: rgba(0,0,0,0.2);
+      
+      --input-bg: rgba(0,0,0,0.04);
+      --input-border: 0.5px solid rgba(0,0,0,0.12);
+      --input-color: rgba(0,0,0,0.7);
+      --input-focus-border: rgba(0,0,0,0.3);
+      
+      --scrollbar-track: transparent;
+      --scrollbar-thumb: rgba(0,0,0,0.12);
+      --scrollbar-thumb-hover: rgba(0,0,0,0.22);
+      
+      --console-bg: #edeae5;
+      --console-timestamp: rgba(0,0,0,0.25);
+      --console-log: rgba(0,0,0,0.6);
+      --console-info: #3a5fa8;
+      --console-input-bg: rgba(0,0,0,0.03);
+      --console-placeholder: rgba(0,0,0,0.25);
+      --console-input-border: 0.5px solid rgba(0,0,0,0.06);
+      
+      --badge-num-color: #8a5a1a; --badge-num-border: rgba(138,90,26,0.3); --badge-num-bg: rgba(138,90,26,0.07);
+      --badge-str-color: #2e7d4f; --badge-str-border: rgba(46,125,79,0.3); --badge-str-bg: rgba(46,125,79,0.07);
+      --badge-obj-color: #00a86b; --badge-obj-border: rgba(0,168,107,0.3); --badge-obj-bg: rgba(0,168,107,0.07);
+      --badge-null-color: #c83c3c; --badge-null-border: rgba(200,60,60,0.3); --badge-null-bg: rgba(200,60,60,0.07);
+      --badge-bool-color: #3a5fa8; --badge-bool-border: rgba(58,95,168,0.3); --badge-bool-bg: rgba(58,95,168,0.07);
+      
+      --dot-default: rgba(0,0,0,0.2);
+      --dot-network: #00a86b;
+      --dot-promises: #8a5a1a;
+      --dot-ghostruns: #a78bfa;
+      --dot-whatif: #a78bfa;
+      
+      --diverge-line: rgba(0,0,0,0.1);
+      --diverge-label: rgba(0,0,0,0.3);
+      
+      --wi-res-bg: rgba(167,139,250,0.06);
+      --wi-res-border: 0.5px solid rgba(167,139,250,0.25);
+      
+      --ghost-ann-color: #7c5fd4;
+      --ghost-ann-bg: rgba(167,139,250,0.1);
+      --ghost-ann-border: 0.5px solid rgba(167,139,250,0.2);
+      
+      --hm-med-bg: rgba(180,120,20,0.12);
+      --hm-med-border: rgba(180,120,20,0.5);
+      --hm-med-counter: rgba(180,120,20,0.7);
+      
+      --hm-high-bg: rgba(200,60,60,0.1);
+      --hm-high-border: rgba(200,60,60,0.55);
+      --hm-high-counter: #c83c3c;
+      
+      --tab-act-bg: rgba(0,168,107,0.1);
+      --tab-act-border: 0.5px solid rgba(0,168,107,0.3);
+      --tab-act-color: #00a86b;
+      --tab-inact-color: rgba(0,0,0,0.35);
+      --tab-inact-border: 0.5px solid rgba(0,0,0,0.1);
+
+      --accent-green: #00c882;
+      --accent-blue: #7e9ee8;
+      --accent-amber: #e8a838;
+      --accent-red: #e85050;
+      --accent-teal: #7dcb9e;
+      --accent-purple: #a78bfa;
+    }
+
     body {
-      background: #0f0f0f;
-      color: rgba(255,255,255,0.55);
+      background: var(--bg-root);
+      color: var(--text-body);
       font-family: 'Courier New', monospace;
       font-size: 12px;
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      transition: background-color 200ms ease, color 200ms ease;
     }
 
     /* Scrollbars */
-    ::-webkit-scrollbar { width: 4px; background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+    ::-webkit-scrollbar { width: 4px; background: var(--scrollbar-track); }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
     /* LAYOUT MACRO */
     .toolbar {
-      height: 48px; border-bottom: 0.5px solid rgba(255,255,255,0.05); display: flex;
-      align-items: center; padding: 0 16px; background: #141414; gap: 12px; flex-shrink: 0;
+      height: 48px; border-bottom: var(--border-divider); display: flex;
+      align-items: center; padding: 0 16px; background: var(--bg-topbar); gap: 12px; flex-shrink: 0;
     }
     .main-area { flex: 1; display: flex; min-height: 0; overflow: hidden; }
-    .source-panel { flex: 1; background: #0f0f0f; display: flex; flex-direction: column; overflow: hidden; position: relative; }
-    .source-header { padding: 8px 16px; border-bottom: 0.5px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); font-size: 10px; letter-spacing: 0.12em; text-transform: lowercase; }
+    .source-panel { flex: 1; background: var(--bg-source); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    .source-header { padding: 8px 16px; border-bottom: var(--border-divider); color: var(--text-header); font-size: 10px; letter-spacing: 0.12em; text-transform: lowercase; display: flex; justify-content: space-between; align-items: center;}
+    .source-header-left { display: flex; align-items: center; gap: 8px; }
+    .source-header-right { display: flex; gap: 6px; }
     .source-code-wrap { flex: 1; overflow: auto; padding: 12px 0; position: relative; }
     
-    .right-sidebar { width: 360px; background: #0f0f0f; border-left: 0.5px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; padding: 12px; gap: 12px; overflow-y: auto; }
+    .right-sidebar { width: 360px; background: var(--bg-root); border-left: var(--border-divider); display: flex; flex-direction: column; padding: 12px; gap: 12px; overflow-y: auto; }
     
-    .bottom-bar { height: 180px; border-top: 0.5px solid rgba(255,255,255,0.05); background: #141414; display: flex; flex-direction: column; flex-shrink: 0; }
-    .console-header { padding: 8px 16px; border-bottom: 0.5px solid rgba(255,255,255,0.05); font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 0.12em; text-transform: lowercase; }
+    .bottom-bar { height: 180px; border-top: var(--border-divider); background: var(--console-bg); display: flex; flex-direction: column; flex-shrink: 0; }
+    .console-header { padding: 8px 16px; border-bottom: var(--border-divider); font-size: 10px; color: var(--text-header); letter-spacing: 0.12em; text-transform: lowercase; }
     .console-lines { flex: 1; padding: 8px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-    .console-line { font-size: 11px; white-space: pre-wrap; word-wrap: break-word; }
+    .console-line { font-size: 11px; white-space: pre-wrap; word-wrap: break-word; color: var(--console-log); }
 
     /* UI COMPONENTS */
-    .panel { background: #141414; border: 0.5px solid rgba(255,255,255,0.07); border-radius: 8px; display: flex; flex-direction: column; flex-shrink: 0; }
-    .panel-header { padding: 10px 12px; border-bottom: 0.5px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
-    .panel-header-title { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.3); font-size: 10px; letter-spacing: 0.12em; text-transform: lowercase; }
-    .panel-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .panel { background: var(--bg-panel); border: var(--border-panel); border-radius: 8px; display: flex; flex-direction: column; flex-shrink: 0; }
+    .panel-header { padding: 10px 12px; border-bottom: var(--border-divider); display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .panel-header-title { display: flex; align-items: center; gap: 8px; color: var(--text-header); font-size: 10px; letter-spacing: 0.12em; text-transform: lowercase; }
+    .panel-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dot-default); }
     .panel-content { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-    .row-divider { border-top: 0.5px solid rgba(255,255,255,0.05); margin: 8px -12px; }
+    .row-divider { border-top: var(--border-divider); margin: 8px -12px; }
 
-    button { background: transparent; border: 0.5px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.55); font-family: 'Courier New', monospace; font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none; }
-    button:hover:not(:disabled) { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.8); }
-    button.active { border-color: rgba(0,200,130,0.4); color: #00c882; background: rgba(0,200,130,0.08); }
-    button:disabled { opacity: 0.3; cursor: not-allowed; }
+    button { background: var(--btn-bg); border: var(--btn-border); color: var(--btn-color); font-family: 'Courier New', monospace; font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; outline: none; }
+    button:hover:not(:disabled) { border: var(--btn-hover-border); color: var(--btn-hover-color); }
+    button.active { border: var(--btn-active-border); color: var(--btn-active-color); background: var(--btn-active-bg); }
+    button.destructive { border: var(--btn-destr-border); color: var(--btn-destr-color); }
+    button:disabled { border: var(--btn-disabled-border); color: var(--btn-disabled-color); cursor: not-allowed; }
     
-    input, textarea { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); font-family: 'Courier New', monospace; font-size: 11px; padding: 5px 8px; border-radius: 4px; outline: none; transition: all 0.2s; }
-    input:focus, textarea:focus { border-color: rgba(255,255,255,0.3); }
-    input.error, textarea.error { border-color: rgba(232,80,80,0.5); }
+    input, textarea { background: var(--input-bg); border: var(--input-border); color: var(--input-color); font-family: 'Courier New', monospace; font-size: 11px; padding: 5px 8px; border-radius: 4px; outline: none; transition: all 0.2s; }
+    input:focus, textarea:focus { border: var(--input-focus-border); }
+    input.error, textarea.error { border-color: var(--accent-red); }
 
-    .dim-text { color: rgba(255,255,255,0.2); font-size: 10px; }
-    .empty-state { color: rgba(255,255,255,0.15); font-size: 13px; text-align: center; display: block; padding: 16px 0; }
+    .dim-text { color: var(--text-dim); font-size: 10px; }
+    .empty-state { color: var(--text-dim); font-size: 13px; text-align: center; display: block; padding: 16px 0; }
 
     /* EXISTING PANELS MOCKS */
     .var-row { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; font-size: 11px; }
@@ -69,80 +282,81 @@
     .ghost-run-list { display: flex; flex-direction: column; gap: 8px; }
     
     .ghost-row { display: flex; align-items: flex-start; gap: 8px; position: relative; }
-    .ghost-row-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 8px; flex-shrink: 0; cursor: pointer; transition: opacity 0.2s; }
+    .ghost-row-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 8px; flex-shrink: 0; cursor: pointer; transition: opacity 0.2s; background: var(--dot-ghostruns); }
     .ghost-row-dot.inactive { opacity: 0.2; }
-    .ghost-row-label { flex: 0 0 70px; background: transparent; border: 1px solid transparent; padding: 4px; color: rgba(255,255,255,0.6); max-width: 80px; }
-    .ghost-row-label:focus { border-color: rgba(255,255,255,0.3); }
+    .ghost-row-label { flex: 0 0 70px; background: transparent; border: 1px solid transparent; padding: 4px; color: var(--text-body); max-width: 80px; }
+    .ghost-row-label:focus { border-color: var(--input-focus-border); }
     .ghost-json-wrap { flex: 1; display: flex; flex-direction: column; position: relative; }
-    .ghost-json-input { height: 26px; resize: none; overflow: hidden; white-space: nowrap; line-height: 14px; }
-    .ghost-json-input:focus { height: 50px; white-space: pre-wrap; overflow: auto; position: absolute; top:0; left:0; width:100%; z-index: 10; background: #1e1e1e; }
+    .ghost-json-input { height: 26px; resize: none; overflow: hidden; white-space: nowrap; line-height: 14px; color: var(--input-color); background: var(--input-bg); }
+    .ghost-json-input:focus { height: 50px; white-space: pre-wrap; overflow: auto; position: absolute; top:0; left:0; width:100%; z-index: 10; background: var(--bg-panel); border-color: var(--input-focus-border); }
     
-    .ghost-remove-btn { opacity: 0; font-size: 11px; border: none; padding: 0 4px; color: rgba(255,255,255,0.3); background: none; margin-top: 4px; }
+    .ghost-remove-btn { opacity: 0; font-size: 11px; border: none; padding: 0 4px; color: var(--text-header); background: none; margin-top: 4px; }
     .ghost-row:hover .ghost-remove-btn { opacity: 1; }
-    .ghost-remove-btn:hover { color: #e85050; }
-    .ghost-error-msg { color: #e85050; font-size: 9px; display: none; margin-top: 2px; }
+    .ghost-remove-btn:hover { color: var(--accent-red); }
+    .ghost-error-msg { color: var(--accent-red); font-size: 9px; display: none; margin-top: 2px; }
 
     .timeline-area { display: flex; flex-direction: column; position: relative; }
-    .timeline-header { display: flex; padding-bottom: 6px; border-bottom: 0.5px solid rgba(255,255,255,0.05); margin-bottom: 8px; }
+    .timeline-header { display: flex; padding-bottom: 6px; border-bottom: var(--border-divider); margin-bottom: 8px; }
     .tl-fn { width: 70px; }
     .tl-bar { flex: 1; }
     .tl-res { width: 60px; text-align: right; }
     
     .track-row { display: flex; align-items: center; height: 24px; font-size: 11px; margin-bottom: 4px; position: relative;}
-    .track-fn-col { width: 70px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255,255,255,0.4); }
+    .track-fn-col { width: 70px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-header); }
     .track-bar-col { flex: 1; position: relative; height: 100%; display: flex; align-items: center; margin: 0 8px; }
-    .track-bg { position: absolute; left: 0; height: 6px; border-radius: 3px; max-width: 100%; }
+    .track-bg { position: absolute; left: 0; height: 6px; border-radius: 3px; max-width: 100%; background: var(--input-bg); }
     .track-segment { position: absolute; height: 6px; border-radius: 3px; cursor: pointer; transform-origin: left; transition: width 0.6s ease; }
     .track-res-col { width: 60px; text-align: right; font-family: monospace; font-size: 11px; }
 
     /* Tooltip */
-    #ghostTooltip { position: absolute; background: #1e1e1e; border: 0.5px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px 10px; font-size: 11px; color: rgba(255,255,255,0.7); pointer-events: none; white-space: pre; display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+    #ghostTooltip { position: absolute; background: var(--bg-panel); border: var(--border-panel); border-radius: 6px; padding: 8px 10px; font-size: 11px; color: var(--input-color); pointer-events: none; white-space: pre; display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
 
     /* Divergence */
-    .divergence-line { position: absolute; top: 0; bottom: 0; width: 1px; border-left: 1px dashed rgba(255,255,255,0.15); z-index: 5; display: none; }
-    .divergence-label { position: absolute; font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 0.08em; transform: translateX(-50%); white-space: nowrap; display: none; top: -16px;}
+    .divergence-line { position: absolute; top: 0; bottom: 0; width: 1px; border-left: 1px dashed var(--diverge-line); z-index: 5; display: none; }
+    .divergence-label { position: absolute; font-size: 9px; color: var(--diverge-label); letter-spacing: 0.08em; transform: translateX(-50%); white-space: nowrap; display: none; top: -16px;}
 
     /* =========================================
        WHAT-IF SANDBOX
        ========================================= */
     .whatif-section { padding-top: 8px; transition: opacity 0.3s; }
     .whatif-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-    .whatif-title { color: rgba(255,255,255,0.3); font-size: 10px; letter-spacing: 0.12em; text-transform: lowercase; display: flex; align-items: center; gap: 8px; }
+    .whatif-title { color: var(--text-header); font-size: 10px; letter-spacing: 0.12em; text-transform: lowercase; display: flex; align-items: center; gap: 8px; }
     .whatif-content { display: none; flex-direction: column; gap: 10px; margin-top: 12px; }
     .whatif-content.expanded { display: flex; }
 
     .wi-row { display: flex; justify-content: space-between; align-items: center; }
-    .wi-label { color: rgba(255,255,255,0.4); font-size: 11px; }
+    .wi-label { color: var(--text-header); font-size: 11px; }
     .wi-input { width: 90px; }
-    .wi-input.overridden { border-color: rgba(167,139,250,0.5); }
+    .wi-input.overridden { border-color: var(--accent-purple); }
 
     .wi-buttons { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
-    .btn-clear { border: none; padding: 0; color: rgba(255,255,255,0.25); font-size: 10px; text-decoration: none; min-width: 0; }
-    .btn-clear:hover { border: none; color: rgba(255,255,255,0.5); background: transparent; }
+    .btn-clear { border: none; padding: 0; color: var(--text-dim); font-size: 10px; text-decoration: none; min-width: 0; }
+    .btn-clear:hover { border: none; color: var(--text-body); background: transparent; }
 
-    .wi-result-box { background: rgba(167,139,250,0.05); border: 0.5px solid rgba(167,139,250,0.2); border-radius: 6px; padding: 10px 12px; margin-top: 4px; display: none; }
+    .wi-result-box { background: var(--wi-res-bg); border: var(--wi-res-border); border-radius: 6px; padding: 10px 12px; margin-top: 4px; display: none; }
     .wi-result-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
-    .wi-res-title { color: #a78bfa; font-size: 10px; letter-spacing: 0.1em; }
-    .wi-res-dim { color: rgba(255,255,255,0.2); font-size: 10px; }
+    .wi-res-title { color: var(--accent-purple); font-size: 10px; letter-spacing: 0.1em; }
+    .wi-res-dim { color: var(--text-dim); font-size: 10px; }
     .wi-res-row { font-size: 11px; margin-top: 6px; display: flex; align-items: center;}
-    .wi-res-name { color: rgba(255,255,255,0.4); }
-    .wi-res-arrow { color: rgba(255,255,255,0.15); margin: 0 6px; }
-    .wi-res-val { color: #a78bfa; }
+    .wi-res-name { color: var(--text-body); }
+    .wi-res-arrow { color: var(--diverge-line); margin: 0 6px; }
+    .wi-res-val { color: var(--accent-purple); }
     
-    .wi-skipped-lines { margin-top: 10px; border-top: 0.5px solid rgba(255,255,255,0.05); padding-top: 8px; display: none; }
-    .wi-badge { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 3px; padding: 2px 6px; font-size: 10px; color: rgba(255,255,255,0.25); margin-right: 4px; display: inline-block; }
+    .wi-skipped-lines { margin-top: 10px; border-top: var(--border-divider); padding-top: 8px; display: none; }
+    .wi-badge { background: var(--input-bg); border: var(--input-border); border-radius: 3px; padding: 2px 6px; font-size: 10px; color: var(--text-dim); margin-right: 4px; display: inline-block; }
 
     /* =========================================
        SOURCE PANEL & OVERLAYS
        ========================================= */
     .code-line { display: flex; position: relative; padding: 2px 0; font-size: 13px; line-height: 22px; cursor: text; border-left: 2px solid transparent;}
-    .code-gutter { width: 50px; flex-shrink: 0; color: rgba(255,255,255,0.2); text-align: right; padding-right: 12px; position: relative; user-select: none; border-right: 0.5px solid rgba(255,255,255,0.05); cursor: pointer;}
-    .code-gutter:hover { color: rgba(255,255,255,0.4); }
-    .code-content { flex: 1; padding-left: 12px; position: relative; white-space: pre; }
+    .code-gutter { width: 50px; flex-shrink: 0; color: var(--text-linenum); text-align: right; padding-right: 12px; position: relative; user-select: none; border-right: var(--border-divider); cursor: pointer;}
+    .code-gutter:hover { color: var(--text-body); }
+    .code-content { flex: 1; padding-left: 12px; position: relative; white-space: pre; color: var(--code-default); }
     
-    .bp-indicator { position: absolute; left: 8px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: #e85050; opacity: 0; }
+    .bp-indicator { position: absolute; left: 8px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-red); opacity: 0; }
     .code-line.has-bp .bp-indicator { opacity: 1; }
-    .code-line.paused { background: rgba(232,168,56,0.1); }
+    .code-line.has-bp { background: var(--bp-bg); border-left: var(--bp-border-left); }
+    .code-line.paused { background: var(--exec-bg); border-left: var(--exec-border-left);}
 
     /* Gutter dots */
     .gutter-dots-container { position: absolute; left: 4px; top: 0; bottom: 0; display: flex; align-items: center; gap: 2px; }
@@ -150,37 +364,122 @@
     .gutter-dot.visible { opacity: 1; }
 
     /* What-if Overlays */
-    .code-line.wi-active-line { border-left-color: rgba(167,139,250,0.6); background: rgba(167,139,250,0.06); }
-    .wi-inline-annotation { position: absolute; left: 350px; color: #a78bfa; font-size: 10px; background: rgba(167,139,250,0.08); border: 0.5px solid rgba(167,139,250,0.15); border-radius: 3px; padding: 2px 6px; display: none; z-index: 5; pointer-events: none;}
+    .code-line.wi-active-line { border-left-color: var(--accent-purple); background: var(--ghost-ann-bg); }
+    .wi-inline-annotation { position: absolute; left: 350px; color: var(--ghost-ann-color); font-size: 10px; background: var(--ghost-ann-bg); border: var(--ghost-ann-border); border-radius: 3px; padding: 2px 6px; display: none; z-index: 5; pointer-events: none;}
     .code-line.wi-active-line .wi-inline-annotation:not(:empty) { display: inline-block; }
     
     .ghost-highlight { background: rgba(255,255,255,0.03); border-bottom: 1px dashed transparent; }
 
     /* Syntax Highlighting Mock */
-    .syn-kw { color: #7e9ee8; }     /* blue */
-    .syn-fn { color: #e8a838; }     /* amber */
-    .syn-num { color: #7dcb9e; }    /* teal */
-    .syn-str { color: #7dcb9e; }    /* teal */
-    .syn-br { color: rgba(255,255,255,0.4); } 
-    .syn-comment { color: rgba(255,255,255,0.25); font-style: italic; }
+    .syn-kw { color: var(--text-keyword); }     /* blue */
+    .syn-fn { color: var(--accent-amber); }     /* amber */
+    .syn-num { color: var(--text-string); }    /* teal */
+    .syn-str { color: var(--text-string); }    /* teal */
+    .syn-br { color: var(--text-dim); } 
+    .syn-comment { color: var(--text-comment); font-style: italic; }
+
+    /* =========================================
+       NEW FEATURES CSS
+       ========================================= */
+    
+    /* 1. Tooltips */
+    .var-token { cursor: pointer; padding: 0 2px; border-radius: 2px; transition: background 0.1s; }
+    .var-token:hover { background: rgba(125,125,125,0.2); }
+    #liveTooltip { position: absolute; background: var(--bg-panel); border: var(--border-panel); border-radius: 6px; padding: 8px 12px; font-size: 11px; z-index: 1000; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none;}
+    .tt-header { color: var(--text-dim); font-size: 10px; margin-bottom: 4px; text-transform: lowercase; }
+    .tt-value { color: var(--text-strong); font-size: 13px; font-family: monospace; word-break: break-all; }
+    
+    /* 2. Sparklines */
+    .spark-col { width: 60px; height: 16px; margin: 0 10px; display: flex; align-items: flex-end; gap: 2px; opacity: 0.7;}
+    .spark-bar { width: 5px; background: var(--accent-green); border-radius: 1px 1px 0 0; transition: height 0.2s; }
+    .spark-bar-amber { background: var(--accent-amber); }
+    .spark-bar-red { background: var(--accent-red); }
+
+    /* 3. Heatmap */
+    .hm-counter { position: absolute; right: 8px; top: 3px; font-size: 9px; padding: 1px 4px; border-radius: 3px; display: none; }
+    .hm-med .hm-counter { display: block; color: var(--hm-med-counter); border: 0.5px solid var(--hm-med-border); background: var(--hm-med-bg); }
+    .hm-high .hm-counter { display: block; color: var(--hm-high-counter); border: 0.5px solid var(--hm-high-border); background: var(--hm-high-bg); }
+    .hm-med { border-left-color: var(--hm-med-counter) !important; background: var(--hm-med-bg); }
+    .hm-high { border-left-color: var(--hm-high-counter) !important; background: var(--hm-high-bg); }
+
+    /* 4. Dependency Graph */
+    #graphContainer { flex: 1; display: none; overflow: auto; padding: 24px; position: relative; }
+    .graph-node { padding: 10px; background: var(--bg-panel); border: var(--border-panel); border-radius: 6px; position: absolute; font-size: 11px; color: var(--text-body); cursor: pointer; text-align: center; width: 120px; transition: transform 0.2s, border-color 0.2s; z-index:2;}
+    .graph-node:hover { transform: translateY(-2px); border-color: var(--accent-blue); color: var(--text-strong); }
+    .graph-node .gn-title { color: var(--accent-blue); font-weight: bold; margin-bottom: 4px; }
+    #graphSvg { position: absolute; top:0; left:0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+    .graph-edge { stroke: var(--text-dim); stroke-width: 1.5; fill: none; }
+
+    /* 5. Inline Return (existing wi-inline-annotation repurposed) */
+    .return-ann { position: absolute; left: 350px; color: var(--accent-green); font-size: 10px; background: var(--btn-active-bg); border: 0.5px solid rgba(0,200,130,0.3); border-radius: 3px; padding: 2px 6px; z-index: 5; font-family: monospace;}
+
+    /* 6. Command Palette */
+    #cmdPaletteOverlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: none; align-items: flex-start; justify-content: center; padding-top: 10vh; backdrop-filter: blur(2px);}
+    .cmd-modal { background: var(--bg-panel); border: var(--border-panel); border-radius: 8px; width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden; }
+    .cmd-input { width: 100%; border: none; background: transparent; padding: 16px; font-size: 14px; color: var(--text-strong); outline: none; border-bottom: var(--border-divider); font-family: monospace; }
+    .cmd-results { max-height: 300px; overflow-y: auto; padding: 8px 0; }
+    .cmd-item { padding: 8px 16px; font-size: 12px; color: var(--text-body); cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+    .cmd-item.active { background: var(--bg-topbar); color: var(--text-strong); border-left: 2px solid var(--accent-blue); padding-left: 14px;}
+    .cmd-item-sc { color: var(--text-dim); font-size: 10px; background: var(--input-bg); border: var(--input-border); padding: 2px 4px; border-radius: 2px;}
+    .cmd-group { padding: 4px 16px; font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-top: 8px; font-weight: bold;}
+    .cmd-group:first-child { margin-top: 0; }
   </style>
+  <script>
+    // FOUC Prevention & Initial Theme
+    (function() {
+      const stored = localStorage.getItem('void-theme');
+      if (stored === 'light' || (!stored && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+        document.documentElement.classList.replace('theme-dark', 'theme-light');
+        document.documentElement.classList.add('theme-light');
+      } else {
+        document.documentElement.classList.add('theme-dark');
+      }
+    })();
+  </script>
 </head>
 <body>
 
+  <!-- SVG DEFS FOR GRAPH -->
+  <svg width="0" height="0" style="position:absolute; pointer-events:none;">
+    <defs>
+      <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-dim)"/>
+      </marker>
+    </defs>
+  </svg>
+
   <!-- TOOLBAR -->
   <div class="toolbar">
-    <div style="font-weight: bold; color: rgba(255,255,255,0.8); font-family: sans-serif; letter-spacing: 1px; margin-right: 16px;">VOID</div>
-    <button id="btnPlay"><span style="color: #00c882; margin-right: 4px;">▶</span> RUN</button>
-    <button id="btnPause"><span style="color: #e8a838; margin-right: 4px;">⏸</span> PAUSE</button>
-    <button id="btnStop"><span style="color: #e85050; margin-right: 4px;">■</span> STOP</button>
+    <div style="font-weight: bold; color: var(--text-strong); font-family: sans-serif; letter-spacing: 1px; margin-right: 16px;">VOID</div>
+    <button id="btnPlay"><span style="color: var(--accent-green); margin-right: 4px;">▶</span> RUN</button>
+    <button id="btnPause"><span style="color: var(--accent-amber); margin-right: 4px;">⏸</span> PAUSE</button>
+    <button id="btnStop"><span style="color: var(--accent-red); margin-right: 4px;">■</span> STOP</button>
     <div style="flex: 1;"></div>
+    <button id="btnThemeToggle" style="margin-right: 12px; font-size: 13px;" title="Toggle Theme (Light/Dark)">☀/☾</button>
+    <button id="btnCmdPal" style="margin-right: 12px;" title="Command Palette">Cmd+K</button>
     <div class="dim-text">v2.0.0 prototype</div>
   </div>
 
   <div class="main-area">
     <!-- SOURCE PANEL -->
     <div class="source-panel">
-      <div class="source-header">DataProcessor.js</div>
+      <div class="source-header">
+        <div class="source-header-left">
+          <span>DataProcessor.js</span>
+        </div>
+        <div class="source-header-right">
+          <button id="btnToggleHeatmap" style="padding: 2px 6px; font-size:9px;">heatmap ●</button>
+          <button id="btnToggleGraph" style="padding: 2px 6px; font-size:9px;">graph ●</button>
+        </div>
+      </div>
+      
+      <!-- GRAPH VIEW CONTAINER -->
+      <div id="graphContainer">
+        <svg id="graphSvg"></svg>
+        <div id="graphNodesContainer"></div>
+      </div>
+
+      <!-- TEXT VIEW CONTAINER -->
       <div class="source-code-wrap" id="sourceWrapper">
         <div id="codeLinesContainer">
           <!-- Populated by JS -->
@@ -191,17 +490,25 @@
     <!-- RIGHT SIDEBAR -->
     <div class="right-sidebar">
       
-      <!-- VARIABLES PANEL (WITH WHAT-IF) -->
+      <!-- VARIABLES PANEL (WITH WHAT-IF AND SPARKLINE DOM) -->
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-title">
-            <div class="panel-dot" style="background: #e8a838;"></div> variables
+            <div class="panel-dot" style="background: var(--accent-amber);"></div> variables
           </div>
           <div class="dim-text">▾</div>
         </div>
         <div class="panel-content">
-          <div class="var-row"><span class="syn-kw">val</span><span class="syn-num">42</span></div>
-          <div class="var-row"><span class="syn-kw">this.multiplier</span><span class="syn-num">1</span></div>
+          <div class="var-row" id="var-row-val">
+            <span class="syn-kw" style="width:100px; text-overflow:ellipsis; overflow:hidden;">val</span>
+            <div class="spark-col" id="spark-val"></div>
+            <span class="syn-num" id="val-num" style="display:inline-block; width:50px; text-align:right; font-family:monospace;">42</span>
+          </div>
+          <div class="var-row" id="var-row-mult">
+            <span class="syn-kw" style="width:100px; text-overflow:ellipsis; overflow:hidden;">this.multiplier</span>
+            <div class="spark-col" id="spark-mult"></div>
+            <span class="syn-num" id="mult-num" style="display:inline-block; width:50px; text-align:right; font-family:monospace;">1</span>
+          </div>
           
           <div class="row-divider"></div>
           
@@ -315,8 +622,17 @@
     </div>
   </div>
 
-  <!-- TOOLTIP -->
+  <!-- TOOLTIPS -->
   <div id="ghostTooltip"></div>
+  <div id="liveTooltip"></div>
+
+  <!-- COMMAND PALETTE -->
+  <div id="cmdPaletteOverlay">
+    <div class="cmd-modal">
+      <input type="text" id="cmdInput" class="cmd-input" placeholder="Type a command..." autocomplete="off" spellcheck="false" autofocus>
+      <div id="cmdResults" class="cmd-results"></div>
+    </div>
+  </div>
 
   <script>
     /* =========================================================
@@ -374,11 +690,27 @@
       '}'
     ];
 
+    // Features State Variables
+    let isHeatmapActive = false;
+    let isGraphActive = false;
+
+    // Hardcoded execution heatmap mock
+    const heatmapData = {
+      2: { val: 120, class: 'hm-high' },
+      3: { val: 120, class: 'hm-high' },
+      5: { val: 42, class: 'hm-med' },
+      6: { val: 42, class: 'hm-med' },
+      7: { val: 42, class: 'hm-med' },
+      9: { val: 5, class: 'hm-med' },
+      10: { val: 5, class: 'hm-med' },
+      11: { val: 5, class: 'hm-med' }
+    };
+
     function renderSource() {
       let html = '';
       sourceCode.forEach((line, idx) => {
         const num = idx + 1;
-        // Basic naive highlighting
+        
         let ht = line
           .replace(/class/g, '<span class="syn-kw">class</span>')
           .replace(/let/g, '<span class="syn-kw">let</span>')
@@ -391,26 +723,38 @@
           .replace(/\b(42|100)\b/g, '<span class="syn-num">$&</span>')
           .replace(/[{}]/g, '<span class="syn-br">$&</span>');
 
+        // Add tokens for tooltips (Feature 1)
+        ht = ht.replace(/\b(multiplier)\b/g, '<span class="var-token" data-var="multiplier">$&</span>');
+        ht = ht.replace(/\b(val)\b/g, '<span class="var-token" data-var="val">$&</span>');
+        ht = ht.replace(/\b(result)\b/g, '<span class="var-token" data-var="result">$&</span>');
+
+        let hmClass = '';
+        let hmVal = '';
+        if (isHeatmapActive && heatmapData[num]) {
+          hmClass = heatmapData[num].class;
+          hmVal = heatmapData[num].val;
+        }
+
         html += `
-          <div class="code-line" id="line-${num}" onclick="toggleBreakpoint(${num})">
+          <div class="code-line ${hmClass}" id="line-${num}" onclick="toggleBreakpoint(${num})">
             <div class="code-gutter">
               <div class="bp-indicator"></div>
               <div class="gutter-dots-container" id="gdots-${num}"></div>
               ${num}
+              <div class="hm-counter">${hmVal}</div>
             </div>
             <div class="code-content">${ht}</div>
             <div class="wi-inline-annotation" id="wi-anno-${num}"></div>
+            <div class="return-ann" id="ret-anno-${num}" style="display:none;"></div>
           </div>
         `;
       });
       UI.codeLinesContainer.innerHTML = html;
-      // Initialize with BP on line 6 for the sandbox test
       document.getElementById('line-6').classList.add('has-bp');
     }
 
     function toggleBreakpoint(num) {
       document.getElementById(`line-${num}`).classList.toggle('has-bp');
-      // For demo, force line 6 as primary breakpoint line
       if (num === 6) UI.bpLine = document.getElementById(`line-6`).classList.contains('has-bp') ? 6 : null;
     }
 
@@ -909,11 +1253,210 @@ ${varsStr}
     }
 
     /* =========================================================
-       MAIN EXECUTION MOCK
+       1. LIVE VALUE TOOLTIPS
+       ========================================================= */
+    const hoverData = {
+      val: { val: "42", type: "number" },
+      multiplier: { val: "1", type: "number" },
+      result: { val: "42", type: "number" }
+    };
+    let ttTimer = null;
+    const ttBox = document.getElementById('liveTooltip');
+
+    document.getElementById('sourceWrapper').addEventListener('mousemove', (e) => {
+      if(!e.target.classList.contains('var-token')) {
+        ttBox.style.display = 'none';
+        clearTimeout(ttTimer);
+        return;
+      }
+      clearTimeout(ttTimer);
+      ttTimer = setTimeout(() => {
+        const vId = e.target.getAttribute('data-var');
+        if(hoverData[vId]) {
+          ttBox.innerHTML = `<div class="tt-header">${typeof hoverData[vId].val}</div><div class="tt-value" style="color:var(--badge-num-color)">${hoverData[vId].val}</div>`;
+          const r = e.target.getBoundingClientRect();
+          ttBox.style.left = r.left + 'px';
+          ttBox.style.top = (r.bottom + 4) + 'px';
+          ttBox.style.display = 'block';
+        }
+      }, 300);
+    });
+
+    document.getElementById('sourceWrapper').addEventListener('mouseout', (e) => {
+      if(e.target.classList.contains('var-token')) {
+         clearTimeout(ttTimer);
+         ttBox.style.display = 'none';
+      }
+    });
+
+    /* =========================================================
+       2. MUTATION SPARKLINES
+       ========================================================= */
+    function renderSparklines() {
+      const dataVal = [10, 20, 25, 42];
+      const dataMult = [1, 1, 1, 1];
+      const sv = document.getElementById('spark-val');
+      const sm = document.getElementById('spark-mult');
+      if (sv) sv.innerHTML = dataVal.map(v => `<div class="spark-bar" style="height:${(v/50)*100}%"></div>`).join('');
+      if (sm) sm.innerHTML = dataMult.map(v => `<div class="spark-bar spark-bar-amber" style="height:${(v/1)*100}%"></div>`).join('');
+    }
+
+    /* =========================================================
+       3. CODE MUTATION HEATMAP
+       ========================================================= */
+    document.getElementById('btnToggleHeatmap').onclick = function() {
+      isHeatmapActive = !isHeatmapActive;
+      this.classList.toggle('active', isHeatmapActive);
+      this.textContent = isHeatmapActive ? 'heatmap ━' : 'heatmap ●';
+      renderSource();
+    };
+
+    /* =========================================================
+       4. DEPENDENCY GRAPH
+       ========================================================= */
+    const astNodes = [
+      { id: 'n1', label: 'DataProcessor', type: 'class', x: 80, y: 50 },
+      { id: 'n2', label: 'constructor', type: 'fn', x: 20, y: 150 },
+      { id: 'n3', label: 'process', type: 'fn', x: 160, y: 150 },
+      { id: 'n4', label: 'fetchStats', type: 'fn', x: 300, y: 150 }
+    ];
+    const astEdges = [
+      { from: 'n1', to: 'n2' }, { from: 'n1', to: 'n3' }, { from: 'n1', to: 'n4' }
+    ];
+
+    document.getElementById('btnToggleGraph').onclick = function() {
+      isGraphActive = !isGraphActive;
+      this.classList.toggle('active', isGraphActive);
+      this.textContent = isGraphActive ? 'graph ━' : 'graph ●';
+      
+      const wrap = document.getElementById('sourceWrapper');
+      const gC = document.getElementById('graphContainer');
+      const svg = document.getElementById('graphSvg');
+      const nodesC = document.getElementById('graphNodesContainer');
+
+      if (isGraphActive) {
+        wrap.style.display = 'none';
+        gC.style.display = 'block';
+        nodesC.innerHTML = astNodes.map(n => `<div class="graph-node" id="${n.id}" style="left:${n.x}px; top:${n.y}px"><div class="gn-title">${n.label}</div><div class="dim-text">${n.type}</div></div>`).join('');
+        
+        requestAnimationFrame(() => {
+          let paths = '';
+          astEdges.forEach(e => {
+            const el1 = document.getElementById(e.from);
+            const el2 = document.getElementById(e.to);
+            if(el1 && el2) {
+              const r1 = el1.getBoundingClientRect();
+              const r2 = el2.getBoundingClientRect();
+              const cr = gC.getBoundingClientRect();
+              const sx = r1.left + r1.width/2 - cr.left + gC.scrollLeft;
+              const sy = r1.bottom - cr.top + gC.scrollTop;
+              const ex = r2.left + r2.width/2 - cr.left + gC.scrollLeft;
+              const ey = r2.top - cr.top + gC.scrollTop;
+              paths += `<path class="graph-edge" d="M ${sx} ${sy} C ${sx} ${(sy+ey)/2}, ${ex} ${(sy+ey)/2}, ${ex} ${ey-4}" />`;
+            }
+          });
+          svg.innerHTML = paths;
+        });
+
+      } else {
+        wrap.style.display = 'block';
+        gC.style.display = 'none';
+      }
+    };
+
+    /* =========================================================
+       6. COMMAND PALETTE
+       ========================================================= */
+    const cmdList = [
+      { id: '1', title: 'Toggle Heatmap', action: () => document.getElementById('btnToggleHeatmap').click(), sc: 'H' },
+      { id: '2', title: 'Toggle Graph View', action: () => document.getElementById('btnToggleGraph').click(), sc: 'G' },
+      { id: '3', title: 'Toggle Light/Dark Theme', action: () => document.getElementById('btnThemeToggle').click(), sc: 'T' },
+      { id: '4', title: 'Run Execution', action: () => document.getElementById('btnPlay').click(), sc: 'R' },
+      { id: '5', title: 'Pause Execution', action: () => document.getElementById('btnPause').click(), sc: 'P' },
+      { id: '6', title: 'Stop Execution', action: () => document.getElementById('btnStop').click(), sc: 'S' }
+    ];
+
+    const cp = document.getElementById('cmdPaletteOverlay');
+    const cpInp = document.getElementById('cmdInput');
+    const cpRes = document.getElementById('cmdResults');
+    let cpActiveIndex = 0;
+    let cpFiltered = [];
+
+    document.addEventListener('keydown', (e) => {
+      if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openCmdPalette();
+      }
+      if(e.key === 'Escape' && cp.style.display === 'flex') {
+        cp.style.display = 'none';
+      }
+      if(cp.style.display === 'flex') {
+        if(e.key === 'ArrowDown') { cpActiveIndex = Math.min(cpActiveIndex+1, cpFiltered.length-1); renderCmdResults(); }
+        if(e.key === 'ArrowUp') { cpActiveIndex = Math.max(cpActiveIndex-1, 0); renderCmdResults(); }
+        if(e.key === 'Enter' && cpFiltered[cpActiveIndex]) {
+          cp.style.display = 'none';
+          cpFiltered[cpActiveIndex].action();
+        }
+      }
+    });
+
+    cpInp.addEventListener('input', () => {
+      const q = cpInp.value.toLowerCase();
+      cpFiltered = cmdList.filter(c => c.title.toLowerCase().includes(q));
+      cpActiveIndex = 0;
+      renderCmdResults();
+    });
+
+    function openCmdPalette() {
+      cp.style.display = 'flex';
+      cpInp.value = '';
+      cpFiltered = [...cmdList];
+      cpActiveIndex = 0;
+      renderCmdResults();
+      setTimeout(() => cpInp.focus(), 50);
+    }
+
+    // Make cp accessible globally so inline onclick handlers work
+    window.cp = cp;
+    window.cpFiltered = cpFiltered;
+
+    function renderCmdResults() {
+      window.cpFiltered = cpFiltered; // update global
+      cpRes.innerHTML = cpFiltered.map((c, i) => `
+        <div class="cmd-item ${i===cpActiveIndex?'active':''}" onmouseover="cpActiveIndex=${i}; renderCmdResults()" onclick="window.cp.style.display='none'; window.cpFiltered[${i}].action()">
+          <span>${c.title}</span>
+          ${c.sc ? `<span class="cmd-item-sc">${c.sc}</span>` : ''}
+        </div>
+      `).join('');
+    }
+
+    cp.onclick = (e) => { if(e.target === cp) cp.style.display = 'none'; };
+
+    /* =========================================================
+       7. THEME TOGGLE
+       ========================================================= */
+    document.getElementById('btnThemeToggle').onclick = () => {
+      const root = document.documentElement;
+      if (root.classList.contains('theme-light')) {
+        root.classList.replace('theme-light', 'theme-dark');
+        localStorage.setItem('void-theme', 'dark');
+      } else {
+        if(root.classList.contains('theme-dark')) {
+          root.classList.replace('theme-dark', 'theme-light');
+        } else {
+          root.classList.add('theme-light');
+        }
+        localStorage.setItem('void-theme', 'light');
+      }
+    };
+
+    /* =========================================================
+       MAIN EXECUTION MOCK (Updated)
        ========================================================= */
     document.getElementById('btnPlay').onclick = () => {
       debugState.paused = false;
       document.querySelectorAll('.code-line.paused').forEach(el => el.classList.remove('paused'));
+      document.querySelectorAll('.return-ann').forEach(el => el.style.display = 'none');
       updateWhatIfState();
       log("Resumed execution...");
     };
@@ -921,22 +1464,36 @@ ${varsStr}
     document.getElementById('btnPause').onclick = () => {
       debugState.paused = true;
       const bpLine = UI.bpLine || 6;
-      document.getElementById(`line-${bpLine}`).classList.add('paused');
-      log(`Paused at breakpoint on line ${bpLine}`, '#e8a838');
+      const el = document.getElementById(`line-${bpLine}`);
+      if(el) {
+        el.classList.add('paused');
+        log(`Paused at breakpoint on line ${bpLine}`, 'var(--accent-amber)');
+        // 5. Inline return preview demo
+        if(bpLine === 6) {
+          const ret = document.getElementById('ret-anno-8');
+          if(ret) {
+             ret.innerHTML = '⟶ 42';
+             ret.style.display = 'inline-block';
+             ret.style.left = '320px';
+          }
+        }
+      }
       updateWhatIfState();
     };
 
     document.getElementById('btnStop').onclick = () => {
       debugState.paused = false;
       document.querySelectorAll('.code-line.paused').forEach(el => el.classList.remove('paused'));
+      document.querySelectorAll('.return-ann').forEach(el => el.style.display = 'none');
       updateWhatIfState();
-      log("Execution stopped.", '#e85050');
+      log("Execution stopped.", 'var(--accent-red)');
     };
 
     // INIT
     renderSource();
     renderGhostInputs();
     updateWhatIfState();
+    renderSparklines();
 
   </script>
 </body>
