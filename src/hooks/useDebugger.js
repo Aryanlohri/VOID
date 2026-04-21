@@ -408,5 +408,9 @@ export function useDebugger() {
     addWatch, removeWatch, evaluateWatch,
     addFile, switchFile, closeFile, openFile, saveFile,
     jumpToDefinition, clearConsole: () => setConsoleLines([]),
+    getObjectProperties: (id) => {
+       const eng = getActiveEngine();
+       return eng ? eng.getObjectProperties(id) : Promise.resolve({ value: {} });
+    }
   };
 }

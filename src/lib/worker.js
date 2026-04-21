@@ -10,9 +10,31 @@ let timeline = new TimelineLog();
 let engine = null;
 let consoleEng = new ConsoleEngine();
 
+let objectCache = new Map();
+let nextObjectId = 1;
+
+// --- SECURITY SANDBOXING ---
+// Remove access to network and storage APIs to isolate user code
+try {
+  self.fetch = undefined;
+  self.XMLHttpRequest = undefined;
+  self.indexedDB = undefined;
+  self.caches = undefined;
+  self.Storage = undefined;
+} catch (e) {
+  console.warn("Sandbox constraint warning:", e);
+}
+// ---------------------------
+
+function clearObjectCache() {
+  objectCache.clear();
+  nextObjectId = 1;
+}
+
 // Safely serialize scope variables to avoid DataCloneError in postMessage
+// Now uses lazy serialization: depth 0 is expanded, depth 1+ is stubbed.
 // (Strips functions, serializes prototypes to plain objects, handles circular refs)
-function sanitizeScopeData(obj, seen = new WeakMap()) {
+function sanitizeScopeData(obj, depth = 0, seen = new WeakMap()) {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj === 'function') {
     return { __void_fn: true, name: obj.name || 'anonymous' };
@@ -23,30 +45,43 @@ function sanitizeScopeData(obj, seen = new WeakMap()) {
   }
   
   if (seen.has(obj)) return '[Circular Reference]';
-  
-  if (Array.isArray(obj)) {
-    const arr = [];
-    seen.set(obj, arr);
-    for (let i = 0; i < obj.length && i < 100; i++) {
-        arr[i] = sanitizeScopeData(obj[i], seen);
-    }
-    if (obj.length > 100) arr.push('... (truncated)');
-    return arr;
+
+  if (depth > 0) {
+     const id = nextObjectId++;
+     objectCache.set(id, obj);
+     
+     let preview = '[Object]';
+     let className = 'Object';
+     if (Array.isArray(obj)) {
+        preview = `Array(${obj.length})`;
+        className = 'Array';
+     } else {
+        const proto = Object.getPrototypeOf(obj);
+        if (proto && proto.constructor) className = proto.constructor.name;
+        try {
+           const keys = Object.keys(obj).slice(0, 3).join(', ');
+           preview = `{${keys}${Object.keys(obj).length > 3 ? ', …' : ''}}`;
+        } catch(e) {}
+     }
+     return { __isObjectId: true, id, preview, className };
   }
   
-  const clone = {};
+  const clone = Array.isArray(obj) ? [] : {};
   seen.set(obj, clone);
+  
   try {
-    for (const key of Object.keys(obj)) {
-      clone[key] = sanitizeScopeData(obj[key], seen);
+    const keys = Object.getOwnPropertyNames(obj);
+    for (let i = 0; i < keys.length && i < 100; i++) {
+      clone[keys[i]] = sanitizeScopeData(obj[keys[i]], depth + 1, seen);
     }
-    // Pull __proto__ properties shallowly so ObjectTree can see them
+    if (keys.length > 100 && Array.isArray(obj)) clone.push('... (truncated)');
+
     const proto = Object.getPrototypeOf(obj);
     if (proto && proto !== Object.prototype) {
-        // Just note it's a custom obect
-        clone['[[Prototype]]'] = proto.constructor ? proto.constructor.name : 'Object';
+        clone['[[Prototype]]'] = sanitizeScopeData(proto, depth + 1, seen);
     }
   } catch(e) {}
+  
   return clone;
 }
 
@@ -58,10 +93,11 @@ function initEngine() {
     
     // Checkpoints contain scope information that must be sanitized
     if (type === 'step' || type === 'breakpoint-hit' || type === 'exception-hit') {
+       clearObjectCache();
        safeData = { ...data };
        if (data.step) {
            safeData.step = { ...data.step };
-           safeData.step.vars = sanitizeScopeData(data.step.vars);
+           safeData.step.vars = sanitizeScopeData(data.step.vars, 0);
            // We don't send rawVars across postMessage strictly anymore; Proxy doesn't need it
            safeData.step.rawVars = null; 
        }
@@ -119,7 +155,7 @@ self.onmessage = async (e) => {
          if (res.ok) {
              let valStr = '';
              if (res.value !== null && typeof res.value === 'object') {
-                 try { valStr = JSON.stringify(sanitizeScopeData(res.value)); } catch(e) { valStr = String(res.value); }
+                 try { valStr = JSON.stringify(sanitizeScopeData(res.value, 0)); } catch(e) { valStr = String(res.value); }
              } else {
                  valStr = String(res.value);
              }
@@ -128,6 +164,18 @@ self.onmessage = async (e) => {
              self.postMessage({ type: 'eval-result', id: args.id, ok: false, error: res.error });
          }
          break;
+      }
+
+      case 'getObjectProperties': {
+          const obj = objectCache.get(args.objectId);
+          if (!obj) {
+             self.postMessage({ type: 'object-properties', id: args.msgId, properties: {} });
+             break;
+          }
+          // Sanitize it at depth 0 so it recursively stubs its children 
+          const props = sanitizeScopeData(obj, 0);
+          self.postMessage({ type: 'object-properties', id: args.msgId, properties: props });
+          break;
       }
 
       default:

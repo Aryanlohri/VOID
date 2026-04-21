@@ -1,9 +1,23 @@
 import { useState } from 'react';
 
-function ObjectTree({ name, value, root = false }) {
+function ObjectTree({ name, value, root = false, getObjectProperties }) {
   const [expanded, setExpanded] = useState(false);
+  const [loadedProps, setLoadedProps] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const toggle = () => setExpanded(!expanded);
+  const toggle = async () => {
+    if (!expanded && value && value.__isObjectId && !loadedProps && getObjectProperties) {
+       setLoading(true);
+       try {
+         const res = await getObjectProperties(value.id);
+         setLoadedProps(res.value || res.properties || {});
+       } catch (e) {
+         setLoadedProps({ error: e.message });
+       }
+       setLoading(false);
+    }
+    setExpanded(!expanded);
+  };
 
   let type = typeof value;
   let preview = String(value);
@@ -12,7 +26,17 @@ function ObjectTree({ name, value, root = false }) {
   let badgeType = typeof value;
   if (value === null) badgeType = 'null';
 
-  if (value === null) { type = 'null'; preview = 'null'; }
+  if (value && value.__isObjectId) {
+    type = value.className === 'Array' ? 'array' : 'object';
+    badgeType = type;
+    preview = value.preview;
+    isExpandable = true;
+  } else if (value && value.__void_fn) {
+    type = 'fn';
+    badgeType = 'function';
+    preview = `[Function: ${value.name}]`;
+    isExpandable = false;
+  } else if (value === null) { type = 'null'; preview = 'null'; }
   else if (value === undefined) { type = 'undefined'; preview = 'undefined'; }
   else if (type === 'string') { type = 'str'; preview = `"${value}"`; }
   else if (type === 'number' || type === 'boolean') { type = type === 'boolean' ? 'bool' : 'number'; }
@@ -58,21 +82,35 @@ function ObjectTree({ name, value, root = false }) {
       
       {expanded && isExpandable && (
         <div className="obj-children" style={{ paddingLeft: '16px', borderLeft: '1px solid rgba(255,255,255,0.05)', marginLeft: '6px' }}>
-          {Object.getOwnPropertyNames(value).map(key => {
-            let childVal;
-            try { childVal = value[key]; } catch(e) { childVal = e; }
-            return <ObjectTree key={key} name={key} value={childVal} />;
-          })}
-          {Object.getPrototypeOf(value) !== null && (
-            <ObjectTree name={'[[Prototype]]'} value={Object.getPrototypeOf(value)} />
-          )}
+          {loading && <div style={{ color: 'var(--text-dim)', fontSize: '11px', padding: '2px 0' }}>loading...</div>}
+          
+          {!loading && (() => {
+            const childrenObj = value.__isObjectId ? (loadedProps || {}) : value;
+            return (
+              <>
+                {Object.getOwnPropertyNames(childrenObj).map(key => {
+                  if (key === '[[Prototype]]') return null;
+                  let childVal;
+                  try { childVal = childrenObj[key]; } catch(e) { childVal = { __isError: true, msg: e.message }; }
+                  if (childVal && childVal.__isError) return <div key={key} style={{color:'red'}}>{key}: {childVal.msg}</div>;
+                  return <ObjectTree key={key} name={key} value={childVal} getObjectProperties={getObjectProperties} />;
+                })}
+                {childrenObj['[[Prototype]]'] ? (
+                  <ObjectTree name={'[[Prototype]]'} value={childrenObj['[[Prototype]]']} getObjectProperties={getObjectProperties} />
+                ) : null}
+                {!value.__isObjectId && Object.getPrototypeOf(value) !== null && (
+                  <ObjectTree name={'[[Prototype]]'} value={Object.getPrototypeOf(value)} getObjectProperties={getObjectProperties} />
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
     </div>
   );
 }
 
-export default function VariablesPanel({ scopeChain = [] }) {
+export default function VariablesPanel({ scopeChain = [], getObjectProperties }) {
   return (
     <div className="panel panel-vars">
       <div className="panel-title"><span className="panel-icon"></span> variables</div>
@@ -90,7 +128,7 @@ export default function VariablesPanel({ scopeChain = [] }) {
                   <div className="empty-state" style={{ padding: '4px 0' }}>—</div>
                 ) : (
                   Object.entries(scope.vars).map(([name, val]) => (
-                    <ObjectTree key={name} name={name} value={val} root={true} />
+                    <ObjectTree key={name} name={name} value={val} root={true} getObjectProperties={getObjectProperties} />
                   ))
                 )}
               </div>

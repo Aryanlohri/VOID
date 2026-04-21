@@ -62,11 +62,11 @@ export class WorkerProxyEngine {
         this.onEvent(eventType, data);
       } else if (msg.type === 'console') {
          if (this._onConsoleMsg) this._onConsoleMsg(msg);
-      } else if (msg.type === 'eval-result') {
+      } else if (msg.type === 'eval-result' || msg.type === 'object-properties') {
          if (this._pendingEvals.has(msg.id)) {
-            let val = msg.value;
-            try { val = JSON.parse(val); } catch(e) {}
-            this._pendingEvals.get(msg.id)({ ok: msg.ok, value: val, error: msg.error });
+            let val = msg.value || msg.properties;
+            try { if (msg.type === 'eval-result') val = JSON.parse(val); } catch(e) {}
+            this._pendingEvals.get(msg.id)({ ok: msg.ok !== false, value: val, error: msg.error });
             this._pendingEvals.delete(msg.id);
          }
       } else if (msg.type === 'error') {
@@ -148,6 +148,14 @@ export class WorkerProxyEngine {
        const id = this._nextEvalId++;
        this._pendingEvals.set(id, resolve);
        this._send('evaluateExpr', { id, expr });
+    });
+  }
+
+  getObjectProperties(objectId) {
+    return new Promise(resolve => {
+       const msgId = this._nextEvalId++;
+       this._pendingEvals.set(msgId, resolve);
+       this._send('getObjectProperties', { msgId, objectId });
     });
   }
 

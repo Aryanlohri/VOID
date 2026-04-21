@@ -46,12 +46,16 @@ export function extractFnName(line) {
 export const STEP_DELAY_MS = 400;
 export const MAX_TIMELINE = 80;
 
-export const SAMPLE_CODE = `// VOID Debugger v7.0 — Ultimate Test Program
-// 1. Prototype Chains & Closures (Memory Inspector)
-// 2. Heavy Loops (Profiler)
-// 3. fetch & Promises (Network & Async Panels)
+export const SAMPLE_CODE = `// VOID Debugger v9.0 — Ultimate Sandbox Test Program
+// 1. Deep Call Stack & Scope Hierarchy
+// 2. Memory Inspector (Deep Objects & Prototypes)
+// 3. Performance Profiling (Loops & Recursion)
+// 4. Async Networking (Fetch & Promises)
+// 5. Hard Stop isolated Web Worker (Infinite Loop test)
+
 // Hit "Run" or F5 to begin!
 
+// --- Memory & Scope ---
 class DataProcessor {
   constructor(multiplier) {
     this.multiplier = multiplier;
@@ -61,7 +65,7 @@ class DataProcessor {
   }
 }
 
-// This triggers the Network & Async panels
+// --- Async & Network ---
 async function fetchStats() {
   console.log("Fetching simulated data...");
   const res = await fetch("https://jsonplaceholder.typicode.com/todos/1");
@@ -69,18 +73,16 @@ async function fetchStats() {
   return data;
 }
 
-// This loop will trigger Profiler hot-paths
-function heavyComputation(iters) {
-  let sum = 0;
-  for (let i = 0; i < iters; i++) {
-    sum += Math.sqrt(i) * 0.001;
-  }
-  return sum;
+// --- Profiling & Call Stack ---
+function recursiveFactorial(n) {
+  if (n <= 1) return 1;
+  return n * recursiveFactorial(n - 1); // Step into to see stack grow
 }
 
+// --- Main Execution ---
 async function runDemo() {
   try {
-    // 1. Closures & Prototypes in Memory Inspector
+    // 1. Closures & Prototypes
     const processor = new DataProcessor(42);
     let capturedVar = "I am tracked dynamically!";
     
@@ -89,20 +91,28 @@ async function runDemo() {
     };
     leakScope();
 
-    // 2. Profiling execution intensity
-    const val = heavyComputation(300);
-    console.log("Computation result:", val);
+    // 2. Complex Objects (Expand in Memory Inspector)
+    const deepObject = {
+       user: { id: 1, roles: ["admin", "editor"] },
+       settings: new Map([["theme", "dark"], ["timeout", 500]])
+    };
 
-    // 3. Network Fetch & Promise Tracking
+    // 3. Call Stack & Hit Counts 
+    const fact = recursiveFactorial(5);
+    console.log("Factorial result:", fact);
+
+    // 4. Network & Promise Tracking
     const promise1 = fetchStats();
     const promise2 = new Promise(resolve => resolve("Async resolve tick"));
     
     const [stats, msg] = await Promise.all([promise1, promise2]);
     console.log("Network JSON:", stats.title);
-    console.log("Message:", msg);
 
-    // 4. Exception Handling
-    throw new Error("Testing runtime exception handling!");
+    // 5. Worker Sandbox Tests (Uncomment to test Hard Stop!)
+    // while(true) { /* UI stays responsive! */ }
+
+    // 6. Exception Catching
+    throw new Error("Testing localized runtime exception handling!");
 
   } catch (err) {
     console.error("Caught error:", err.message);

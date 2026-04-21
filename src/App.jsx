@@ -92,7 +92,7 @@ export default function App() {
           </div>
 
           <div className="panel-stack">
-            <VariablesPanel scopeChain={db.scopeChain} />
+            <VariablesPanel scopeChain={db.scopeChain} getObjectProperties={db.getObjectProperties} />
             <CallStackPanel callStack={db.callStack} />
             <WatchPanel
               watchExprs={db.watchExprs}
