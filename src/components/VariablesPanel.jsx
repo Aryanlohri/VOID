@@ -81,7 +81,7 @@ function ObjectTree({ name, value, root = false, getObjectProperties }) {
       </div>
       
       {expanded && isExpandable && (
-        <div className="obj-children" style={{ paddingLeft: '16px', borderLeft: '1px solid rgba(255,255,255,0.05)', marginLeft: '6px' }}>
+        <div className="obj-children" style={{ paddingLeft: '16px', borderLeft: '1px solid var(--border)', marginLeft: '6px' }}>
           {loading && <div style={{ color: 'var(--text-dim)', fontSize: '11px', padding: '2px 0' }}>loading...</div>}
           
           {!loading && (() => {
@@ -92,7 +92,7 @@ function ObjectTree({ name, value, root = false, getObjectProperties }) {
                   if (key === '[[Prototype]]') return null;
                   let childVal;
                   try { childVal = childrenObj[key]; } catch(e) { childVal = { __isError: true, msg: e.message }; }
-                  if (childVal && childVal.__isError) return <div key={key} style={{color:'red'}}>{key}: {childVal.msg}</div>;
+                  if (childVal && childVal.__isError) return <div key={key} style={{color:'var(--red)'}}>{key}: {childVal.msg}</div>;
                   return <ObjectTree key={key} name={key} value={childVal} getObjectProperties={getObjectProperties} />;
                 })}
                 {childrenObj['[[Prototype]]'] ? (
@@ -120,7 +120,7 @@ export default function VariablesPanel({ scopeChain = [], getObjectProperties })
         ) : (
           scopeChain.map((scope, idx) => (
             <div className="scope-section" key={idx} style={{ marginBottom: '8px' }}>
-              <div className="scope-title" style={{ fontSize: '10px', textTransform: 'lowercase', color: 'rgba(255,255,255,0.35)', marginBottom: '4px', borderBottom: '0.5px solid rgba(255,255,255,0.05)', paddingBottom: '2px' }}>
+              <div className="scope-title" style={{ fontSize: '10px', textTransform: 'lowercase', color: 'var(--text-dim)', marginBottom: '4px', borderBottom: '0.5px solid var(--border)', paddingBottom: '2px' }}>
                 {scope.name} scope
               </div>
               <div className="scope-vars" style={{ paddingLeft: '4px' }}>
