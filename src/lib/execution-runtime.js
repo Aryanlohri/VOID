@@ -27,13 +27,14 @@ export class ExecutionRuntime {
    * @param {Function} onCheckpoint - callback(checkpointData) when paused
    * @param {Function} onConsole - callback({type, msg, ts}) for console output
    * @param {Function} onFrameChange - callback(callStack) when stack changes
+   * @param {Function} [onAsyncUpdate] - callback(asyncData) for network/promise tracking
    */
-  constructor(bpManager, onCheckpoint, onConsole, onFrameChange) {
+  constructor(bpManager, onCheckpoint, onConsole, onFrameChange, onAsyncUpdate = null) {
     this.bpManager = bpManager;
     this.onCheckpoint = onCheckpoint;
     this.onConsole = onConsole;
     this.onFrameChange = onFrameChange;
-    this.onAsyncUpdate = null; // injected later or pass as 5th arg
+    this.onAsyncUpdate = onAsyncUpdate;
 
 
     // Execution state
