@@ -183,6 +183,13 @@ self.onmessage = async (e) => {
         console.warn('Worker received unknown action:', action);
     }
   } catch (error) {
-    self.postMessage({ type: 'error', error: error.message, stack: error.stack });
+    self.postMessage({ type: 'error', error: error?.message ?? String(error), stack: error?.stack });
   }
 };
+
+self.addEventListener('unhandledrejection', (e) => {
+  let reasonStr = String(e.reason);
+  if (e.reason && e.reason.message) reasonStr = e.reason.message;
+  if (e.reason && e.reason.stack) reasonStr += '\n' + e.reason.stack;
+  self.postMessage({ type: 'error', error: `Unhandled Rejection: ${reasonStr}` });
+});
