@@ -285,7 +285,7 @@ export class DebugEngine {
     // Build step data compatible with existing UI
     const step = {
       lineNum: checkpoint.line,
-      vars: checkpoint.scopeVars,
+      vars: checkpoint.scopeChain,
       rawVars: checkpoint.rawVars,
       stack: checkpoint.callStack,
       reason: checkpoint.reason,
@@ -510,7 +510,7 @@ export class DebugEngine {
       if (__rt) __rt.trackFetch(id, url, method);
       
       try {
-        const _f = globalThis.__internalFetch || globalThis.fetch;
+        const _f = globalThis.__internalFetch ? globalThis.__internalFetch.bind(globalThis) : globalThis.fetch;
         const res = await _f(url, options);
         const clone = res.clone();
         let preview = '';
