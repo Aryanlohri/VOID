@@ -510,7 +510,8 @@ export class DebugEngine {
       if (__rt) __rt.trackFetch(id, url, method);
       
       try {
-        const res = await window.fetch(url, options);
+        const _f = globalThis.__internalFetch || globalThis.fetch;
+        const res = await _f(url, options);
         const clone = res.clone();
         let preview = '';
         try {

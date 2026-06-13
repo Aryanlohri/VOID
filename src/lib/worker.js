@@ -16,6 +16,7 @@ let nextObjectId = 1;
 // --- SECURITY SANDBOXING ---
 // Remove access to network and storage APIs to isolate user code
 try {
+  globalThis.__internalFetch = self.fetch;
   self.fetch = undefined;
   self.XMLHttpRequest = undefined;
   self.indexedDB = undefined;
