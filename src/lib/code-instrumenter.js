@@ -148,6 +148,62 @@ export class CodeInstrumenter {
   _walkForInsertions(node, ops, scopeMap, currentScopeNode, enclosingFn) {
     if (!node || typeof node !== 'object') return;
 
+    // Handle class method definitions specially — MUST come before _isFunctionNode check
+    // because MethodDefinition values are FunctionExpressions that would be mishandled.
+    if (node.type === 'MethodDefinition') {
+      const method = node.value; // FunctionExpression
+      if (!method) return;
+
+      const isConstructor = node.kind === 'constructor';
+      const isGetterSetter = node.kind === 'get' || node.kind === 'set';
+      const fnName = node.key?.name || node.key?.value || '(anonymous)';
+      const line = node.loc?.start?.line || 0;
+      const fnScopeNode = scopeMap.get(method) || currentScopeNode;
+
+      if (isConstructor || isGetterSetter) {
+        // Constructors and getters/setters CANNOT be async in JavaScript.
+        // Just recurse into the body to find nested functions (arrow fns, etc.)
+        if (method.body) {
+          this._walkForInsertions(method.body, ops, scopeMap, fnScopeNode, method);
+        }
+      } else {
+        // Regular class method — make async and instrument like a normal function
+        if (!method.async) {
+          // Insert 'async ' at the correct position for class methods
+          if (node.static) {
+            // static method: insert before method name → 'static async methodName()'
+            ops.push({ pos: node.key.start, text: 'async ', type: 'insert' });
+          } else {
+            // non-static method: insert before method name → 'async methodName()'
+            ops.push({ pos: node.start, text: 'async ', type: 'insert' });
+          }
+        }
+
+        const paramNames = (method.params || []).map(p => {
+          if (p.type === 'Identifier') return p.name;
+          if (p.type === 'AssignmentPattern' && p.left?.name) return p.left.name;
+          if (p.type === 'RestElement' && p.argument?.name) return p.argument.name;
+          return null;
+        }).filter(Boolean);
+
+        const body = method.body;
+        if (body && body.type === 'BlockStatement') {
+          const argsCapture = paramNames.map(p => `${p}:${p}`).join(',');
+          const pushFrame = `__rt.pushFrame('${this._escapeSingle(fnName)}', ${line}, {${argsCapture}}); try {`;
+          const popFrame = `} catch(__e${line}) { if (__e${line}.message !== '__VOID_EXECUTION_STOPPED__') await __rt.onException(__e${line}, ${line}, true); __rt.popFrame(); throw __e${line}; } finally {} __rt.popFrame();`;
+
+          ops.push({ pos: body.start + 1, text: pushFrame, type: 'insert' });
+          ops.push({ pos: body.end - 1, text: popFrame, type: 'insert' });
+        }
+
+        if (method.body) {
+          this._walkBody(method.body, ops, scopeMap, fnScopeNode, method);
+        }
+      }
+
+      return; // Don't let default recursion also process the FunctionExpression
+    }
+
     // Handle function declarations/expressions — make async + wrap body
     if (this._isFunctionNode(node)) {
       const fnName = node.id?.name || '(anonymous)';
