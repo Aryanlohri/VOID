@@ -52,6 +52,7 @@ export class CodeInstrumenter {
       // Collect insertion operations
       const ops = [];
       this._walkForInsertions(ast, ops, scopeMap, scopeMap.get(ast), null);
+      this._walkForAwait(ast, ops);
 
       // Apply operations to source (process from end to preserve offsets)
       const instrumented = this._applyOps(source, ops);
@@ -375,10 +376,13 @@ export class CodeInstrumenter {
    * Process from end to start to preserve earlier offsets.
    */
   _applyOps(source, ops) {
-    // De-duplicate: if same pos has multiple inserts, combine them
-    const sorted = [...ops].sort((a, b) => b.pos - a.pos); // reverse order
+    // Remove duplicates at same position with same text
+    const sorted = [...ops].sort((a, b) => {
+      if (b.pos !== a.pos) return b.pos - a.pos;
+      // If pos is same, higher priority is processed first (so it ends up on the right/closer to original node)
+      return (b.priority || 0) - (a.priority || 0);
+    });
 
-    // Remove duplicates at same position
     const seen = new Set();
     const unique = [];
     for (const op of sorted) {
@@ -403,11 +407,33 @@ export class CodeInstrumenter {
    * Add 'await' before function calls in expressions.
    * This is needed because we make all functions async.
    */
-  addAwaitToCallExpressions(source, ast) {
-    // This is handled by the async wrapping —
-    // since all functions are async, their return values are Promises,
-    // but within async functions, the engine handles this automatically.
-    return source;
+  /**
+   * Add 'await' before function calls in expressions.
+   * This is needed because we make all functions async.
+   */
+  _walkForAwait(ast, ops) {
+    const walk = (node, parent) => {
+      if (!node || typeof node !== 'object') return;
+
+      if (node.type === 'CallExpression') {
+        if (!parent || parent.type !== 'AwaitExpression') {
+          ops.push({ pos: node.start, text: '(await ', type: 'insert', priority: 1 });
+          ops.push({ pos: node.end, text: ')', type: 'insert', priority: 1 });
+        }
+      }
+
+      for (const key of Object.keys(node)) {
+        if (key === 'loc' || key === 'range' || key === 'type') continue;
+        const child = node[key];
+        if (Array.isArray(child)) {
+          for (const c of child) walk(c, node);
+        } else if (child && typeof child === 'object' && child.type) {
+          walk(child, node);
+        }
+      }
+    };
+    
+    walk(ast, null);
   }
 
   _isFunctionNode(node) {
