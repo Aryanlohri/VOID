@@ -277,8 +277,15 @@ export class CodeInstrumenter {
    */
   _walkBody(body, ops, scopeMap, currentScopeNode, enclosingFn) {
     if (!body) return;
-    const stmts = body.type === 'BlockStatement' ? body.body : [body];
-    for (const stmt of stmts) {
+    
+    if (body.type !== 'BlockStatement') {
+      // It's an expression body (e.g. arrow function `x => x * 2`).
+      // We cannot insert statement-level checkpoints here without breaking syntax.
+      this._walkForInsertions(body, ops, scopeMap, currentScopeNode, enclosingFn);
+      return;
+    }
+
+    for (const stmt of body.body) {
       this._instrumentStatement(stmt, ops, scopeMap, currentScopeNode, enclosingFn);
       this._walkForInsertions(stmt, ops, scopeMap, currentScopeNode, enclosingFn);
     }
