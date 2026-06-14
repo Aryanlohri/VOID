@@ -46,79 +46,60 @@ export function extractFnName(line) {
 export const STEP_DELAY_MS = 400;
 export const MAX_TIMELINE = 80;
 
-export const SAMPLE_CODE = `// VOID Debugger v9.0 — Ultimate Sandbox Test Program
-// 1. Deep Call Stack & Scope Hierarchy
-// 2. Memory Inspector (Deep Objects & Prototypes)
-// 3. Performance Profiling (Loops & Recursion)
-// 4. Async Networking (Fetch & Promises)
-// 5. Hard Stop isolated Web Worker (Infinite Loop test)
+export const SAMPLE_CODE = `// 🚀 VOID Debugger - Ultimate Capability Demo
 
-// Hit "Run" or F5 to begin!
-
-// --- Memory & Scope ---
-class DataProcessor {
-  constructor(multiplier) {
-    this.multiplier = multiplier;
-  }
-  process(val) {
-    return val * this.multiplier;
-  }
-}
-
-// --- Async & Network ---
-async function fetchStats() {
-  console.log("Fetching simulated data...");
-  const res = await fetch("https://jsonplaceholder.typicode.com/todos/1");
-  const data = await res.json();
-  return data;
-}
-
-// --- Profiling & Call Stack ---
-function recursiveFactorial(n) {
-  if (n <= 1) return 1;
-  return n * recursiveFactorial(n - 1); // Step into to see stack grow
-}
-
-// --- Main Execution ---
-async function runDemo() {
-  try {
-    // 1. Closures & Prototypes
-    const processor = new DataProcessor(42);
-    let capturedVar = "I am tracked dynamically!";
+async function startCoolDemo() {
+  console.log("🚀 Starting VOID Deep Profiler Demo...");
+  
+  // 1. Recursive algorithm to visualize the call stack and memory growth
+  async function mergeSort(arr) {
+    if (arr.length <= 1) return arr;
+    const mid = Math.floor(arr.length / 2);
     
-    const leakScope = () => {
-      console.log(capturedVar, processor.process(2));
-    };
-    leakScope();
-
-    // 2. Complex Objects (Expand in Memory Inspector)
-    const deepObject = {
-       user: { id: 1, roles: ["admin", "editor"] },
-       settings: new Map([["theme", "dark"], ["timeout", 500]])
-    };
-
-    // 3. Call Stack & Hit Counts 
-    const fact = recursiveFactorial(5);
-    console.log("Factorial result:", fact);
-
-    // 4. Network & Promise Tracking
-    const promise1 = fetchStats();
-    const promise2 = new Promise(resolve => resolve("Async resolve tick"));
+    // Put a breakpoint on the next line to watch the call stack deepen!
+    const left = await mergeSort(arr.slice(0, mid));
+    const right = await mergeSort(arr.slice(mid));
     
-    const [stats, msg] = await Promise.all([promise1, promise2]);
-    console.log("Network JSON:", stats.title);
-
-    // 5. Worker Sandbox Tests (Uncomment to test Hard Stop!)
-    // while(true) { /* UI stays responsive! */ }
-
-    // 6. Exception Catching
-    throw new Error("Testing localized runtime exception handling!");
-
-  } catch (err) {
-    console.error("Caught error:", err.message);
+    let result = [], i = 0, j = 0;
+    while (i < left.length && j < right.length) {
+      if (left[i] < right[j]) result.push(left[i++]);
+      else result.push(right[j++]);
+    }
+    return result.concat(left.slice(i)).concat(right.slice(j));
   }
+
+  // Generate some randomized data
+  const data = [];
+  for(let i=0; i<10; i++) data.push(Math.floor(Math.random() * 100));
+  
+  console.log("Unsorted Data:", data);
+  
+  const sorted = await mergeSort(data);
+  console.log("Sorted Data:", sorted);
+
+  // 2. Dual-fetching with Promises to visualize network resolution in the Network panel
+  console.log("Fetching user and post data concurrently...");
+  const p1 = fetch("https://jsonplaceholder.typicode.com/users/1").then(r => r.json());
+  const p2 = fetch("https://jsonplaceholder.typicode.com/posts/1").then(r => r.json());
+  
+  const [user, post] = await Promise.all([p1, p2]);
+  
+  // You can expand these objects in the Memory Inspector!
+  console.log(\`👤 Fetched User:\`, user);
+  console.log(\`📝 Fetched Post:\`, post);
+
+  // 3. Simulating a closure scope trap
+  let count = 0;
+  
+  // We use a custom loop to simulate interval without blocking the sandbox
+  for (let i = 0; i < 3; i++) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    count++;
+    console.log(\`Tick \${count}...\`);
+  }
+  
+  console.log("Demo completed perfectly! ✅");
 }
 
-// Kickoff Execution
-runDemo();
+startCoolDemo();
 `;
