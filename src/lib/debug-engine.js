@@ -172,6 +172,9 @@ export class DebugEngine {
       return;
     }
 
+    console.log('--- INSTRUMENTED CODE ---');
+    console.log(instrumented);
+
     // Create fresh runtime for this execution
     this.runtime = new ExecutionRuntime(
       this.bpManager,
@@ -199,16 +202,18 @@ export class DebugEngine {
           this.onEvent('execution-done', {});
         }
       } catch (e) {
-        if (e.message === '__VOID_EXECUTION_STOPPED__') {
+        const errMsg = e?.message ?? String(e);
+        if (errMsg === '__VOID_EXECUTION_STOPPED__') {
           this.state = 'idle';
           this.onEvent('state-change', { state: 'idle' });
           this.onEvent('stopped', {});
         } else {
-          onConsoleMsg({ type: 'error', msg: `RuntimeError: ${e.message}`, ts: ts() });
-          this.timeline.record('err', `ERR: ${e.message.slice(0, 20)}`, {});
+          console.error('[VOID DebugEngine] Runtime error caught:', e);
+          onConsoleMsg({ type: 'error', msg: `RuntimeError: ${errMsg}`, ts: ts() });
+          this.timeline.record('err', `ERR: ${errMsg.slice(0, 20)}`, {});
           this.state = 'idle';
           this.onEvent('state-change', { state: 'idle' });
-          this.onEvent('execution-done', { error: e.message });
+          this.onEvent('execution-done', { error: errMsg });
         }
       }
       return;
@@ -253,15 +258,17 @@ export class DebugEngine {
         this.onEvent('execution-done', {});
       }
     } catch (e) {
-      if (e.message === '__VOID_EXECUTION_STOPPED__') {
+      const errMsg = e?.message ?? String(e);
+      if (errMsg === '__VOID_EXECUTION_STOPPED__') {
         // Intentional stop
         this.state = 'idle';
         this.onEvent('state-change', { state: 'idle' });
         this.onEvent('stopped', {});
       } else {
         // Runtime error
-        onConsoleMsg({ type: 'error', msg: `RuntimeError: ${e.message}`, ts: ts() });
-        this.timeline.record('err', `ERR: ${e.message.slice(0, 20)}`, {});
+        console.error('[VOID DebugEngine] Runtime error caught:', e);
+        onConsoleMsg({ type: 'error', msg: `RuntimeError: ${errMsg}`, ts: ts() });
+        this.timeline.record('err', `ERR: ${errMsg.slice(0, 20)}`, {});
         this.state = 'idle';
         if (this.runtime && this.runtime.profilerData) {
           const prof = this.runtime.profilerData;
@@ -269,7 +276,7 @@ export class DebugEngine {
           this.onEvent('profiler-update', { profilerData: prof });
         }
         this.onEvent('state-change', { state: 'idle' });
-        this.onEvent('execution-done', { error: e.message });
+        this.onEvent('execution-done', { error: errMsg });
       }
     }
   }

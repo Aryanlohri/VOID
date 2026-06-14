@@ -58,7 +58,7 @@ export class CodeInstrumenter {
       const instrumented = this._applyOps(source, ops);
 
       // Wrap in an async IIFE so top-level await works
-      const finalCode = `(async function __voidMain() {\n__rt.pushFrame('(global)', 1, {});\ntry {\n${instrumented}\n} catch(__e) {\nif (__e.message !== '__VOID_EXECUTION_STOPPED__') { await __rt.onException(__e, 0, false); throw __e; }\n} finally {\n__rt.popFrame();\n}\n})()`;
+      const finalCode = `(async function __voidMain() {\nconsole.log('--- STARTING IIFE ---');\n__rt.pushFrame('(global)', 1, {});\ntry {\n${instrumented}\n} catch(__e) {\nif (__e.message !== '__VOID_EXECUTION_STOPPED__') { await __rt.onException(__e, 0, false); throw __e; }\n} finally {\n__rt.popFrame();\n}\n})()`;
 
       this._cache.set(hash, finalCode);
       return { code: finalCode, error: null };

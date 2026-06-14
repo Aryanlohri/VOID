@@ -11,6 +11,8 @@ let engine = null;
 let consoleEng = new ConsoleEngine();
 
 let objectCache = new Map();
+console.log('WORKER INITIALIZED: VERSION 5');
+
 let nextObjectId = 1;
 
 // --- SECURITY SANDBOXING ---
@@ -114,7 +116,7 @@ function initEngine() {
 initEngine();
 
 const handleConsole = (msg) => {
-  self.postMessage({ type: 'console', ...msg });
+  self.postMessage({ type: 'console', payload: msg });
 };
 
 self.onmessage = async (e) => {

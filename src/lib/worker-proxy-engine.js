@@ -61,7 +61,7 @@ export class WorkerProxyEngine {
 
         this.onEvent(eventType, data);
       } else if (msg.type === 'console') {
-         if (this._onConsoleMsg) this._onConsoleMsg(msg);
+         if (this._onConsoleMsg) this._onConsoleMsg(msg.payload);
       } else if (msg.type === 'eval-result' || msg.type === 'object-properties') {
          if (this._pendingEvals.has(msg.id)) {
             let val = msg.value || msg.properties;
