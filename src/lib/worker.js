@@ -11,8 +11,6 @@ let engine = null;
 let consoleEng = new ConsoleEngine();
 
 let objectCache = new Map();
-console.log('WORKER INITIALIZED: VERSION 5');
-
 let nextObjectId = 1;
 
 // --- SECURITY SANDBOXING ---

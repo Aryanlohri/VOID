@@ -172,9 +172,6 @@ export class DebugEngine {
       return;
     }
 
-    console.log('--- INSTRUMENTED CODE ---');
-    console.log(instrumented);
-
     // Create fresh runtime for this execution
     this.runtime = new ExecutionRuntime(
       this.bpManager,
